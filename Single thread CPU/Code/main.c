@@ -1,8 +1,88 @@
 #include <lodePNG.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <SDL/SDL.h>
 #include <math.h>
+
+int show(const char* filename) {
+  unsigned error;
+  unsigned char* image;
+  unsigned w, h, x, y;
+  SDL_Surface* scr;
+  SDL_Event event;
+  int done;
+  size_t jump = 1;
+
+  printf("showing %s\n", filename);
+
+  error = lodepng_decode32_file(&image, &w, &h, filename);
+
+  if(error) {
+    printf("decoder error %u: %s\n", error, lodepng_error_text(error));
+    return 0;
+  }
+
+  if(w / 1024 >= jump) jump = w / 1024 + 1;
+  if(h / 1024 >= jump) jump = h / 1024 + 1;
+
+  if(SDL_Init(SDL_INIT_VIDEO) < 0) {
+    printf("Error, SDL video init failed\n");
+    return 0;
+  }
+  scr = SDL_SetVideoMode(w / jump, h / jump, 32, SDL_HWSURFACE);
+  if(!scr) {
+    printf("Error, no SDL screen\n");
+    return 0;
+  }
+  SDL_WM_SetCaption(filename, NULL);
+
+  for(y = 0; y + jump - 1 < h; y += jump)
+  for(x = 0; x + jump - 1 < w; x += jump) {
+    int checkerColor;
+    Uint32* bufp;
+    Uint32 r, g, b, a;
+
+    r = image[4 * y * w + 4 * x + 0];
+    g = image[4 * y * w + 4 * x + 1];
+    b = image[4 * y * w + 4 * x + 2];
+    a = image[4 * y * w + 4 * x + 3];
+
+    checkerColor = 191 + 64 * (((x / 16) % 2) == ((y / 16) % 2));
+    r = (a * r + (255 - a) * checkerColor) / 255;
+    g = (a * g + (255 - a) * checkerColor) / 255;
+    b = (a * b + (255 - a) * checkerColor) / 255;
+
+    bufp = (Uint32 *)scr->pixels + (y * scr->pitch / 4) / jump + (x / jump);
+    *bufp = 65536 * r + 256 * g + b;
+  }
+
+  done = 0;
+  while(done == 0) {
+    while(SDL_PollEvent(&event)) {
+      if(event.type == SDL_QUIT) done = 2;
+      else if(SDL_GetKeyState(NULL)[SDLK_ESCAPE]) done = 2;
+      else if(event.type == SDL_KEYDOWN) done = 1;
+    }
+    SDL_UpdateRect(scr, 0, 0, 0, 0);
+    SDL_Delay(5);
+  }
+
+  free(image);
+  SDL_Quit();
+  return done == 2 ? 1 : 0;
+
+}
+
+void encode(const char* filename, const unsigned char* image, unsigned width, unsigned height) {
+
+  /*Encode the image*/
+  unsigned error = lodepng_encode32_file(filename, image, width, height);
+
+  /*if there's an error, display it*/
+  if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+}
 
 void transform_grey(const char* input, const char* output){
 
@@ -41,12 +121,12 @@ void transform_grey(const char* input, const char* output){
 	}
 
 
-	error = lodepng_encode32_file(output, grey_image, width, height);
+	 error = lodepng_encode32_file(output, grey_image, width, height);
 
-	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+	  if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	free(image);
-	free(grey_image);
+	  free(image);
+	  free(grey_image);
 
 }
 
@@ -95,11 +175,108 @@ void resize(const char* input, const char* output){
 
 	}
 
-	error = lodepng_encode32_file(output, image_redux, width_redux, height_redux);
+	 error = lodepng_encode32_file(output, image_redux, width_redux, height_redux);
+	  if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	  free(image);
+	  free(image_redux);
+
+}
+
+void ZNCC(const char* input_left, const char* input_right, const char* output, int sizeWindow){
+
+	unsigned width;
+	unsigned height;
+
+	unsigned char* image_left;
+	unsigned char* image_right;
+	unsigned error;
+
+	error = lodepng_decode32_file(&image_left, &width, &height, input_left);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	free(image);
-	free(image_redux);
+	error = lodepng_decode32_file(&image_right, &width, &height, input_right);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	Uint32 value_left, value_right, sum_left, sum_right, meanValueLeft, meanValueRight, upperSum, lowerSum_0, lowerSum_1, znccValue, maxSum, bestDisp;
+
+	unsigned max_disp = 9;
+
+	unsigned char* depthImage = malloc(width * height * 4);
+
+	for(int h = 0; h < height - sizeWindow; h++){
+
+		for(int w = 0; w < width - sizeWindow; w++){
+
+			maxSum = 0; bestDisp = 0;
+
+			for(int d = 0; d < max_disp; d++){
+
+				sum_left = 0; sum_right = 0; meanValueLeft = 0; meanValueRight = 0;
+
+				for(int j = 0; j < sizeWindow; j++){
+
+					for(int i = 0; i < sizeWindow; i++){
+
+						value_left = image_left[4 * width * ( h + j ) + 4 * ( w + i )];
+						value_right = image_right[4 * width * ( h + j ) + 4 * ( w - d + i )];
+
+						sum_left += value_left;
+						sum_right += value_right;
+
+					}
+
+				}
+
+				meanValueLeft = sum_left / (sizeWindow * sizeWindow);
+				meanValueRight = sum_right / (sizeWindow * sizeWindow);
+
+				upperSum = 0; lowerSum_0 = 0; lowerSum_1 = 0;
+
+				for(int j = 0; j < sizeWindow; j++){
+
+					for(int i = 0; i < sizeWindow; i++){
+
+						value_left = image_left[4 * width * ( h + j ) + 4 * ( w + i )];
+						value_right = image_right[4 * width * ( h + j ) + 4 * ( w - d + i )];
+
+						upperSum += (value_left - meanValueLeft) * (value_right - meanValueRight);
+						lowerSum_0 += (value_left - meanValueLeft) * (value_left - meanValueLeft);
+						lowerSum_1 += (value_right - meanValueRight) * (value_right - meanValueRight);
+
+					}
+
+				}
+
+				znccValue = upperSum / (sqrt(lowerSum_0) * sqrt(lowerSum_1));
+
+				if(znccValue > maxSum){
+
+					maxSum = znccValue;
+					bestDisp = d;
+
+				}
+
+			}
+
+
+			Uint32 depthValue = ceil(255 / 8 * bestDisp);
+
+			 depthImage[4 * width * h + 4 * w + 0] = depthValue;
+			 depthImage[4 * width * h + 4 * w + 1] = depthValue;
+			 depthImage[4 * width * h + 4 * w + 2] = depthValue;
+			 depthImage[4 * width * h + 4 * w + 3] = 255;
+
+		}
+
+	}
+
+	 error = lodepng_encode32_file(output, depthImage, width, height);
+
+	  /*if there's an error, display it*/
+	  if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	free(depthImage);
 
 }
 
@@ -109,6 +286,8 @@ int main(int argc, char* argv[]){
 	transform_grey("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im1.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_right.png");
 	resize("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png");
 	resize("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png");
+	ZNCC("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth.png", 9);
+	show("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth.png");
 
 	return 0;
 
