@@ -12,4 +12,4 @@ Multi-threading course project
 - [ ] Measure the total execution time of the implementation
 - [ ] Comment the code and make a documentation
 
-**The result of occlusion filling is a bit noisy, have to improve it**
+**Impoved occlusion, but still some holes on the picture**

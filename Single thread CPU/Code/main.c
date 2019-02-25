@@ -450,6 +450,8 @@ void occlusion_filling(const char* input, const char* output){
 	error = lodepng_decode32_file(&image, &width, &height, input);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
+	unsigned char* result = malloc(width * height * 4);
+
 	for(int h = halfWindowSize; h < height - halfWindowSize; h++){
 
 		for(int w = halfWindowSize; w < width - halfWindowSize; w++){
@@ -466,10 +468,10 @@ void occlusion_filling(const char* input, const char* output){
 
 								value = image[4 * width * j + 4 * i];
 
-								image[4 * width * h + 4 * w + 0] = value;
-								image[4 * width * h + 4 * w + 1] = value;
-								image[4 * width * h + 4 * w + 2] = value;
-								image[4 * width * h + 4 * w + 3] = 255;
+								result[4 * width * h + 4 * w + 0] = value;
+								result[4 * width * h + 4 * w + 1] = value;
+								result[4 * width * h + 4 * w + 2] = value;
+								result[4 * width * h + 4 * w + 3] = 255;
 
 								stop = 1;
 
@@ -496,14 +498,24 @@ void occlusion_filling(const char* input, const char* output){
 
 			}
 
+			else{
+
+				result[4 * width * h + 4 * w + 0] = image[4 * width * h + 4 * w + 0];
+				result[4 * width * h + 4 * w + 1] = image[4 * width * h + 4 * w + 1];
+				result[4 * width * h + 4 * w + 2] = image[4 * width * h + 4 * w + 2];
+				result[4 * width * h + 4 * w + 3] = 255;
+
+			}
+
 		}
 
 	}
 
-	 error = lodepng_encode32_file(output, image, width, height);
+	 error = lodepng_encode32_file(output, result, width, height);
 	 if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
 	free(image);
+	free(result);
 
 }
 
@@ -517,7 +529,6 @@ int main(int argc, char* argv[]){
 	ZNCC_2("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", 9);
 	cross_checking("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth1.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/cross_check.png");
 	occlusion_filling("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/cross_check.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/occlusion.png");
-	//show("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth.png");
 
 	return 0;
 
