@@ -182,7 +182,7 @@ void resize(const char* input, const char* output){
 
 }
 
-void ZNCC(const char* input_left, const char* input_right, const char* output, int sizeWindow){
+void ZNCC_1(const char* input_left, const char* input_right, const char* output, int sizeWindow){
 
 	unsigned width;
 	unsigned height;
@@ -281,14 +281,167 @@ void ZNCC(const char* input_left, const char* input_right, const char* output, i
 
 }
 
+void ZNCC_2(const char* input_left, const char* input_right, const char* output, int sizeWindow){
+
+	unsigned width;
+	unsigned height;
+
+	unsigned char* image_left;
+	unsigned char* image_right;
+	unsigned error;
+
+	error = lodepng_decode32_file(&image_left, &width, &height, input_left);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	error = lodepng_decode32_file(&image_right, &width, &height, input_right);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	Uint32 value_left, value_right, sum_left, sum_right, meanValueLeft, meanValueRight, upperSum, lowerSum_0, lowerSum_1, bestDisp;
+
+	float znccValue, maxSum;
+
+	unsigned max_disp = 65; //260 / 4
+
+	int halfWindowSize = floor(sizeWindow / 2);
+
+	unsigned char* depthImage = malloc(width * height * 4);
+
+	for(int h = halfWindowSize; h < height - halfWindowSize; h++){
+
+		for(int w = halfWindowSize; w < width - halfWindowSize - max_disp; w++){
+
+			maxSum = 0; bestDisp = 0;
+
+			for(int d = 0; d < max_disp; d++){
+
+				sum_left = 0; sum_right = 0; meanValueLeft = 0; meanValueRight = 0;
+
+				for(int j = h - halfWindowSize; j < h + halfWindowSize; j++){
+
+					for(int i = w - halfWindowSize; i < w + halfWindowSize; i++){
+
+						value_left = image_left[4 * width * j + 4 * ( i + d ) ];
+						value_right = image_right[4 * width * j + 4 * i];
+
+						sum_left += value_left;
+						sum_right += value_right;
+
+					}
+
+				}
+
+				meanValueLeft = sum_left / (sizeWindow * sizeWindow);
+				meanValueRight = sum_right / (sizeWindow * sizeWindow);
+
+				upperSum = 0; lowerSum_0 = 0; lowerSum_1 = 0;
+
+				for(int j = h - halfWindowSize; j < h + halfWindowSize; j++){
+
+					for(int i = w - halfWindowSize; i < w + halfWindowSize; i++){
+
+						value_left = image_left[4 * width * j + 4 * (i + d) ];
+						value_right = image_right[4 * width * j + 4 * i ];
+
+						upperSum += (value_left - meanValueLeft) * (value_right - meanValueRight);
+						lowerSum_0 += (value_left - meanValueLeft) * (value_left - meanValueLeft);
+						lowerSum_1 += (value_right - meanValueRight) * (value_right - meanValueRight);
+
+					}
+
+				}
+
+				znccValue = upperSum / (sqrt(lowerSum_0) * sqrt(lowerSum_1));
+
+				if(znccValue > maxSum){
+
+					maxSum = znccValue;
+					bestDisp = d;
+
+				}
+
+			}
+
+
+			int depthValue = ceil((255 / max_disp) * bestDisp);
+
+			 depthImage[4 * width * h + 4 * w + 0] = depthValue;
+			 depthImage[4 * width * h + 4 * w + 1] = depthValue;
+			 depthImage[4 * width * h + 4 * w + 2] = depthValue;
+			 depthImage[4 * width * h + 4 * w + 3] = 255;
+
+		}
+	}
+
+	 error = lodepng_encode32_file(output, depthImage, width, height);
+	 if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	free(depthImage);
+
+}
+
+void cross_checking(const char* input1, const char* input2, const char* output){
+
+	unsigned width;
+	unsigned height;
+
+	unsigned char* image1;
+	unsigned char* image2;
+	unsigned error;
+	unsigned value;
+
+	error = lodepng_decode32_file(&image1, &width, &height, input1);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	error = lodepng_decode32_file(&image2, &width, &height, input2);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	unsigned char* checkedImage = malloc(width * height * 4);
+
+	for(int h = 0; h < height; h++){
+
+		for(int w = 0; w < width; w++){
+
+			if( abs( image1[4 * width * h + 4 * w] - image2[4 * width * h + 4 * w] ) < 8 ){
+
+				value = image1[4 * width * h + 4 * w];
+
+				checkedImage[4 * width * h + 4 * w + 0] = value;
+				checkedImage[4 * width * h + 4 * w + 1] = value;
+				checkedImage[4 * width * h + 4 * w + 2] = value;
+				checkedImage[4 * width * h + 4 * w + 3] = 255;
+
+			}
+
+			else{
+
+				checkedImage[4 * width * h + 4 * w + 0] = 0;
+				checkedImage[4 * width * h + 4 * w + 1] = 0;
+				checkedImage[4 * width * h + 4 * w + 2] = 0;
+				checkedImage[4 * width * h + 4 * w + 3] = 255;
+
+			}
+
+		}
+
+	}
+
+	 error = lodepng_encode32_file(output, checkedImage, width, height);
+	 if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	free(checkedImage);
+
+}
+
 int main(int argc, char* argv[]){
 
 	transform_grey("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im0.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_left.png");
 	transform_grey("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im1.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_right.png");
 	resize("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png");
 	resize("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png");
-	ZNCC("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth.png", 9);
-	show("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth.png");
+	ZNCC_1("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth1.png", 9);
+	ZNCC_2("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", 9);
+	cross_checking("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth1.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/cross_check.png");
+	//show("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth.png");
 
 	return 0;
 
