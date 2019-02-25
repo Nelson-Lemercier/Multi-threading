@@ -76,10 +76,8 @@ int show(const char* filename) {
 
 void encode(const char* filename, const unsigned char* image, unsigned width, unsigned height) {
 
-  /*Encode the image*/
   unsigned error = lodepng_encode32_file(filename, image, width, height);
 
-  /*if there's an error, display it*/
   if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
 }
@@ -109,7 +107,7 @@ void transform_grey(const char* input, const char* output){
 			b = image[4 * width * y + 4 * x + 2];
 			a = image[4 * width * y + 4 * x + 3];
 
-			grey_value = (r + g + b) / 3;
+			grey_value = (0.2126 * r + 0.7152 * g + 0.0722 * b);
 
 			grey_image[4 * width * y + 4 * x + 0] = grey_value;
 			grey_image[4 * width * y + 4 * x + 1] = grey_value;
@@ -176,6 +174,7 @@ void resize(const char* input, const char* output){
 	}
 
 	 error = lodepng_encode32_file(output, image_redux, width_redux, height_redux);
+
 	  if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
 	  free(image);
@@ -198,15 +197,19 @@ void ZNCC(const char* input_left, const char* input_right, const char* output, i
 	error = lodepng_decode32_file(&image_right, &width, &height, input_right);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	Uint32 value_left, value_right, sum_left, sum_right, meanValueLeft, meanValueRight, upperSum, lowerSum_0, lowerSum_1, znccValue, maxSum, bestDisp;
+	Uint32 value_left, value_right, sum_left, sum_right, meanValueLeft, meanValueRight, upperSum, lowerSum_0, lowerSum_1, bestDisp;
 
-	unsigned max_disp = 9;
+	float znccValue, maxSum;
+
+	unsigned max_disp = 65; //260 / 4
+
+	int halfWindowSize = floor(sizeWindow / 2);
 
 	unsigned char* depthImage = malloc(width * height * 4);
 
-	for(int h = 0; h < height - sizeWindow; h++){
+	for(int h = halfWindowSize; h < height - halfWindowSize; h++){
 
-		for(int w = 0; w < width - sizeWindow; w++){
+		for(int w = halfWindowSize + max_disp; w < width - halfWindowSize; w++){
 
 			maxSum = 0; bestDisp = 0;
 
@@ -214,12 +217,12 @@ void ZNCC(const char* input_left, const char* input_right, const char* output, i
 
 				sum_left = 0; sum_right = 0; meanValueLeft = 0; meanValueRight = 0;
 
-				for(int j = 0; j < sizeWindow; j++){
+				for(int j = h - halfWindowSize; j < h + halfWindowSize; j++){
 
-					for(int i = 0; i < sizeWindow; i++){
+					for(int i = w - halfWindowSize; i < w + halfWindowSize; i++){
 
-						value_left = image_left[4 * width * ( h + j ) + 4 * ( w + i )];
-						value_right = image_right[4 * width * ( h + j ) + 4 * ( w - d + i )];
+						value_left = image_left[4 * width * j + 4 * i ];
+						value_right = image_right[4 * width * j + 4 * ( i - d )];
 
 						sum_left += value_left;
 						sum_right += value_right;
@@ -233,12 +236,12 @@ void ZNCC(const char* input_left, const char* input_right, const char* output, i
 
 				upperSum = 0; lowerSum_0 = 0; lowerSum_1 = 0;
 
-				for(int j = 0; j < sizeWindow; j++){
+				for(int j = h - halfWindowSize; j < h + halfWindowSize; j++){
 
-					for(int i = 0; i < sizeWindow; i++){
+					for(int i = w - halfWindowSize; i < w + halfWindowSize; i++){
 
-						value_left = image_left[4 * width * ( h + j ) + 4 * ( w + i )];
-						value_right = image_right[4 * width * ( h + j ) + 4 * ( w - d + i )];
+						value_left = image_left[4 * width * j + 4 * i ];
+						value_right = image_right[4 * width * j + 4 * ( i - d )];
 
 						upperSum += (value_left - meanValueLeft) * (value_right - meanValueRight);
 						lowerSum_0 += (value_left - meanValueLeft) * (value_left - meanValueLeft);
@@ -260,7 +263,7 @@ void ZNCC(const char* input_left, const char* input_right, const char* output, i
 			}
 
 
-			Uint32 depthValue = ceil(255 / 8 * bestDisp);
+			int depthValue = ceil((255 / max_disp) * bestDisp);
 
 			 depthImage[4 * width * h + 4 * w + 0] = depthValue;
 			 depthImage[4 * width * h + 4 * w + 1] = depthValue;
@@ -272,9 +275,7 @@ void ZNCC(const char* input_left, const char* input_right, const char* output, i
 	}
 
 	 error = lodepng_encode32_file(output, depthImage, width, height);
-
-	  /*if there's an error, display it*/
-	  if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+	 if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
 	free(depthImage);
 
