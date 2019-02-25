@@ -432,6 +432,81 @@ void cross_checking(const char* input1, const char* input2, const char* output){
 
 }
 
+void occlusion_filling(const char* input, const char* output){
+
+	unsigned width;
+	unsigned height;
+
+	unsigned char* image;
+
+	unsigned error;
+	unsigned value;
+
+	int stop = 0;
+	int sizeWindow = 3;
+	int halfWindowSize = floor(sizeWindow / 2);
+	int newHalfWindowSize = halfWindowSize;
+
+	error = lodepng_decode32_file(&image, &width, &height, input);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	for(int h = halfWindowSize; h < height - halfWindowSize; h++){
+
+		for(int w = halfWindowSize; w < width - halfWindowSize; w++){
+
+			if( image[4 * width * h + 4 * w] == 0 ){
+
+				while(!stop){
+
+					for(int j = h - newHalfWindowSize; j < h + newHalfWindowSize; j++){
+
+						for(int i = w - newHalfWindowSize; i < w + newHalfWindowSize; i++){
+
+							if( image[4 * width * j + 4 * i] != 0 && !stop){
+
+								value = image[4 * width * j + 4 * i];
+
+								image[4 * width * h + 4 * w + 0] = value;
+								image[4 * width * h + 4 * w + 1] = value;
+								image[4 * width * h + 4 * w + 2] = value;
+								image[4 * width * h + 4 * w + 3] = 255;
+
+								stop = 1;
+
+							}
+
+						}
+
+					}
+
+					sizeWindow += 2;
+					newHalfWindowSize = floor(sizeWindow / 2);
+
+					if( w - newHalfWindowSize < 0 || w + newHalfWindowSize > width || h - newHalfWindowSize < 0 || h + newHalfWindowSize > height ){
+
+						stop = 1;
+
+					}
+
+				}
+
+				stop = 0;
+				sizeWindow = 3;
+				newHalfWindowSize = floor(sizeWindow / 2);
+
+			}
+
+		}
+
+	}
+
+	 error = lodepng_encode32_file(output, image, width, height);
+	 if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	free(image);
+
+}
+
 int main(int argc, char* argv[]){
 
 	transform_grey("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im0.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_left.png");
@@ -441,6 +516,7 @@ int main(int argc, char* argv[]){
 	ZNCC_1("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth1.png", 9);
 	ZNCC_2("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", 9);
 	cross_checking("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth1.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/cross_check.png");
+	occlusion_filling("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/cross_check.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/occlusion.png");
 	//show("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth.png");
 
 	return 0;
