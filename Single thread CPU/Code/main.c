@@ -5,7 +5,7 @@
 #include <SDL/SDL.h>
 #include <math.h>
 
-int show(const char* filename) {
+int show(const char* filename) { // Display the image using SDL library. Exemple from LodePNG library.
   unsigned error;
   unsigned char* image;
   unsigned w, h, x, y;
@@ -74,15 +74,9 @@ int show(const char* filename) {
 
 }
 
-void encode(const char* filename, const unsigned char* image, unsigned width, unsigned height) {
+void transform_grey(const char* input, const char* output){ //Transform a RGBA image to a grey image (still in RGBA format)
 
-  unsigned error = lodepng_encode32_file(filename, image, width, height);
-
-  if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
-
-}
-
-void transform_grey(const char* input, const char* output){
+	// Initialisation of the variables and decoding of the input image
 
 	unsigned width;
 	unsigned height;
@@ -93,10 +87,12 @@ void transform_grey(const char* input, const char* output){
 	error = lodepng_decode32_file(&image, &width, &height, input);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	unsigned char* grey_image = malloc(width * height * 4);
+	unsigned char* grey_image = malloc(width * height * 4); // Declaration of the new image, and allocate memory.
 	unsigned x, y;
 
 	Uint32 r, g, b, a, grey_value;
+
+	// For each pixel of the image ...
 
 	for(y = 0; y < height; y++){
 
@@ -107,7 +103,9 @@ void transform_grey(const char* input, const char* output){
 			b = image[4 * width * y + 4 * x + 2];
 			a = image[4 * width * y + 4 * x + 3];
 
-			grey_value = (0.2126 * r + 0.7152 * g + 0.0722 * b);
+			grey_value = (0.2126 * r + 0.7152 * g + 0.0722 * b); // The grey value is a combination of the RGB values (We ake mostly the green component).
+
+			// Save the same value for R, G and B in the new image
 
 			grey_image[4 * width * y + 4 * x + 0] = grey_value;
 			grey_image[4 * width * y + 4 * x + 1] = grey_value;
@@ -118,17 +116,19 @@ void transform_grey(const char* input, const char* output){
 
 	}
 
+	// Encode the output image and save it on the computer
 
 	 error = lodepng_encode32_file(output, grey_image, width, height);
 
 	  if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	  free(image);
 	  free(grey_image);
 
 }
 
-void resize(const char* input, const char* output){
+void resize(const char* input, const char* output){ // Resize the image by taking every fourth pixel
+
+	// Initialisation of the variables and decoding of the input image
 
 	unsigned width;
 	unsigned height;
@@ -139,16 +139,22 @@ void resize(const char* input, const char* output){
 	error = lodepng_decode32_file(&image, &width, &height, input);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
+	// The output image will be 4 times smaller
+
 	unsigned width_redux = width / 4;
 	unsigned height_redux = height / 4;
 
-	unsigned char* image_redux = malloc(width_redux * height_redux * 4);
+	unsigned char* image_redux = malloc(width_redux * height_redux * 4); // Declaration of the new image, and allocate memory.
 	unsigned x, y, k, l;
+
+	// Indexes to save the values in the output image
 
 	k = 0;
 	l = 0;
 
 	Uint32 r, g, b, a;
+
+	// For each fourth pixel, save the values in the output image at indexes k and l
 
 	for(y = 0; y < height; y+=4){
 
@@ -173,16 +179,19 @@ void resize(const char* input, const char* output){
 
 	}
 
+	// Encode the output image and save it on the computer
+
 	 error = lodepng_encode32_file(output, image_redux, width_redux, height_redux);
 
-	  if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+	 if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	  free(image);
-	  free(image_redux);
+	 free(image_redux);
 
 }
 
-void ZNCC_1(const char* input_left, const char* input_right, const char* output, int sizeWindow){
+void ZNCC_right(const char* input_left, const char* input_right, const char* output, int sizeWindow){ // Apply the ZNCC algorithm on the right image (the disparity will be applied on the right image)
+
+	// Initialisation of the variables and decoding of the input images
 
 	unsigned width;
 	unsigned height;
@@ -197,15 +206,17 @@ void ZNCC_1(const char* input_left, const char* input_right, const char* output,
 	error = lodepng_decode32_file(&image_right, &width, &height, input_right);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	Uint32 value_left, value_right, sum_left, sum_right, meanValueLeft, meanValueRight, upperSum, lowerSum_0, lowerSum_1, bestDisp;
+	Uint32 value_left, value_right, sum_left, sum_right, meanValueLeft, meanValueRight, upperSum, lowerSum_0, lowerSum_1, bestDisp; // Declaration of the integers used in the algorithm
 
-	float znccValue, maxSum;
+	float znccValue, maxSum; // Declaration of the floats used in the algorithm
 
-	unsigned max_disp = 65; //260 / 4
+	unsigned max_disp = 65; // The suggested maximum disparity is 260, the image is 4 times smaller
 
 	int halfWindowSize = floor(sizeWindow / 2);
 
-	unsigned char* depthImage = malloc(width * height * 4);
+	unsigned char* depthImage = malloc(width * height * 4); // Declaration of the output image and memory allocation
+
+	// For each pixel of the image, considering borders for the window, apply the ZNCC algorithm
 
 	for(int h = halfWindowSize; h < height - halfWindowSize; h++){
 
@@ -263,7 +274,9 @@ void ZNCC_1(const char* input_left, const char* input_right, const char* output,
 			}
 
 
-			int depthValue = ceil((255 / max_disp) * bestDisp);
+			int depthValue = ceil((255 / max_disp) * bestDisp); // Normalization of the result
+
+			// Saving the result in the ouput image
 
 			 depthImage[4 * width * h + 4 * w + 0] = depthValue;
 			 depthImage[4 * width * h + 4 * w + 1] = depthValue;
@@ -274,6 +287,8 @@ void ZNCC_1(const char* input_left, const char* input_right, const char* output,
 
 	}
 
+	// Encode the output image and save it on the computer
+
 	 error = lodepng_encode32_file(output, depthImage, width, height);
 	 if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
@@ -281,7 +296,9 @@ void ZNCC_1(const char* input_left, const char* input_right, const char* output,
 
 }
 
-void ZNCC_2(const char* input_left, const char* input_right, const char* output, int sizeWindow){
+void ZNCC_left(const char* input_left, const char* input_right, const char* output, int sizeWindow){ // Apply the ZNCC algorithm on the left image (the disparity will be applied on the left image)
+
+	// Initialisation of the variables and decoding of the input images
 
 	unsigned width;
 	unsigned height;
@@ -296,15 +313,17 @@ void ZNCC_2(const char* input_left, const char* input_right, const char* output,
 	error = lodepng_decode32_file(&image_right, &width, &height, input_right);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	Uint32 value_left, value_right, sum_left, sum_right, meanValueLeft, meanValueRight, upperSum, lowerSum_0, lowerSum_1, bestDisp;
+	Uint32 value_left, value_right, sum_left, sum_right, meanValueLeft, meanValueRight, upperSum, lowerSum_0, lowerSum_1, bestDisp; // Declaration of the integers used in the algorithm
 
-	float znccValue, maxSum;
+	float znccValue, maxSum; // Declaration of the floats used in the algorithm
 
-	unsigned max_disp = 65; //260 / 4
+	unsigned max_disp = 65; // The suggested maximum disparity is 260, the image is 4 times smaller
 
 	int halfWindowSize = floor(sizeWindow / 2);
 
-	unsigned char* depthImage = malloc(width * height * 4);
+	unsigned char* depthImage = malloc(width * height * 4); // Declaration of the output image and memory allocation
+
+	// For each pixel of the image, considering borders for the window, apply the ZNCC algorithm
 
 	for(int h = halfWindowSize; h < height - halfWindowSize; h++){
 
@@ -361,8 +380,9 @@ void ZNCC_2(const char* input_left, const char* input_right, const char* output,
 
 			}
 
+			int depthValue = ceil((255 / max_disp) * bestDisp); // Normalization of the result
 
-			int depthValue = ceil((255 / max_disp) * bestDisp);
+			// Saving the result in the ouput image
 
 			 depthImage[4 * width * h + 4 * w + 0] = depthValue;
 			 depthImage[4 * width * h + 4 * w + 1] = depthValue;
@@ -372,6 +392,8 @@ void ZNCC_2(const char* input_left, const char* input_right, const char* output,
 		}
 	}
 
+	// Encode the output image and save it on the computer
+
 	 error = lodepng_encode32_file(output, depthImage, width, height);
 	 if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
@@ -379,7 +401,9 @@ void ZNCC_2(const char* input_left, const char* input_right, const char* output,
 
 }
 
-void cross_checking(const char* input1, const char* input2, const char* output){
+void cross_checking(const char* input1, const char* input2, const char* output){ // Take the two depth map as input and gives and cross checked image as output
+
+	// Initialisation of the variables and decoding of the input images
 
 	unsigned width;
 	unsigned height;
@@ -395,15 +419,19 @@ void cross_checking(const char* input1, const char* input2, const char* output){
 	error = lodepng_decode32_file(&image2, &width, &height, input2);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	unsigned char* checkedImage = malloc(width * height * 4);
+	unsigned char* checkedImage = malloc(width * height * 4); // Declaration of the output image and memory allocation
+
+	// For each pixel of the two input images
 
 	for(int h = 0; h < height; h++){
 
 		for(int w = 0; w < width; w++){
 
-			if( abs( image1[4 * width * h + 4 * w] - image2[4 * width * h + 4 * w] ) < 8 ){
+			if( abs( image1[4 * width * h + 4 * w] - image2[4 * width * h + 4 * w] ) < 8 ){ // If the difference between the value of image 1 and 2 is superior than the threshold
 
-				value = image1[4 * width * h + 4 * w];
+				value = image1[4 * width * h + 4 * w]; // We take the value of the first image
+
+				// And put it in the ouput image
 
 				checkedImage[4 * width * h + 4 * w + 0] = value;
 				checkedImage[4 * width * h + 4 * w + 1] = value;
@@ -413,6 +441,8 @@ void cross_checking(const char* input1, const char* input2, const char* output){
 			}
 
 			else{
+
+				// Else, we put 0
 
 				checkedImage[4 * width * h + 4 * w + 0] = 0;
 				checkedImage[4 * width * h + 4 * w + 1] = 0;
@@ -425,6 +455,8 @@ void cross_checking(const char* input1, const char* input2, const char* output){
 
 	}
 
+	// Encode the output image and save it on the computer
+
 	 error = lodepng_encode32_file(output, checkedImage, width, height);
 	 if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
@@ -432,39 +464,48 @@ void cross_checking(const char* input1, const char* input2, const char* output){
 
 }
 
-void occlusion_filling(const char* input, const char* output){
+void occlusion_filling(const char* input, const char* output){ // Fill the holes done during the cross checking
+
+	// Initialisation of the variables and decoding of the input images
 
 	unsigned width;
 	unsigned height;
+	unsigned error;
 
 	unsigned char* image;
-
-	unsigned error;
-	unsigned value;
-
-	int stop = 0;
-	int sizeWindow = 3;
-	int halfWindowSize = floor(sizeWindow / 2);
-	int newHalfWindowSize = halfWindowSize;
 
 	error = lodepng_decode32_file(&image, &width, &height, input);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	unsigned char* result = malloc(width * height * 4);
+	unsigned char* result = malloc(width * height * 4); // Declaration of the output image and memory allocation
+
+	// Declaration and initialization of the values used in the algorithm
+
+	unsigned value;
+	int found = 0;
+	int sizeWindow = 3;
+	int halfWindowSize = floor(sizeWindow / 2);
+	int newHalfWindowSize = halfWindowSize;
+
+	// For each pixel of the image, considering the borders for the research window
 
 	for(int h = halfWindowSize; h < height - halfWindowSize; h++){
 
 		for(int w = halfWindowSize; w < width - halfWindowSize; w++){
 
-			if( image[4 * width * h + 4 * w] == 0 ){
+			if( image[4 * width * h + 4 * w] == 0 ){ // If a pixel value is 0
 
-				while(!stop){
+				while(!found){ // While no values other than 0 as been found
+
+					// Search for a new value other than 0 in the research window
 
 					for(int j = h - newHalfWindowSize; j < h + newHalfWindowSize; j++){
 
 						for(int i = w - newHalfWindowSize; i < w + newHalfWindowSize; i++){
 
-							if( image[4 * width * j + 4 * i] != 0 && !stop){
+							if( image[4 * width * j + 4 * i] != 0 && !found){ // If a value other than 0 is found, and no other value was found in the window
+
+								// Put this value in the output image
 
 								value = image[4 * width * j + 4 * i];
 
@@ -473,7 +514,7 @@ void occlusion_filling(const char* input, const char* output){
 								result[4 * width * h + 4 * w + 2] = value;
 								result[4 * width * h + 4 * w + 3] = 255;
 
-								stop = 1;
+								found = 1; // The value is found
 
 							}
 
@@ -481,24 +522,28 @@ void occlusion_filling(const char* input, const char* output){
 
 					}
 
+					// Increase the size of the window, in case the value was not found
+
 					sizeWindow += 2;
 					newHalfWindowSize = floor(sizeWindow / 2);
 
-					if( w - newHalfWindowSize < 0 || w + newHalfWindowSize > width || h - newHalfWindowSize < 0 || h + newHalfWindowSize > height ){
+					if( w - newHalfWindowSize < 0 || w + newHalfWindowSize > width || h - newHalfWindowSize < 0 || h + newHalfWindowSize > height ){ // Check if increasing the size of the window do not overflow
 
-						stop = 1;
+						found = 1; // Otherwise, stop the loop
 
 					}
 
 				}
 
-				stop = 0;
+				// Initialize the variables for the next pixel
+
+				found = 0;
 				sizeWindow = 3;
 				newHalfWindowSize = floor(sizeWindow / 2);
 
 			}
 
-			else{
+			else{ // If the value of the pixel is not 0, save the value on the ouput image
 
 				result[4 * width * h + 4 * w + 0] = image[4 * width * h + 4 * w + 0];
 				result[4 * width * h + 4 * w + 1] = image[4 * width * h + 4 * w + 1];
@@ -511,10 +556,11 @@ void occlusion_filling(const char* input, const char* output){
 
 	}
 
+	// Encode the output image and save it on the computer
+
 	 error = lodepng_encode32_file(output, result, width, height);
 	 if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	free(image);
 	free(result);
 
 }
@@ -525,8 +571,8 @@ int main(int argc, char* argv[]){
 	transform_grey("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im1.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_right.png");
 	resize("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png");
 	resize("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png");
-	ZNCC_1("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth1.png", 9);
-	ZNCC_2("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", 9);
+	ZNCC_right("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth1.png", 9);
+	ZNCC_left("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", 9);
 	cross_checking("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth1.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/cross_check.png");
 	occlusion_filling("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/cross_check.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/occlusion.png");
 
