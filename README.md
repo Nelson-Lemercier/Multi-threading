@@ -30,7 +30,7 @@ Apply an occlusion filling algorithm. First, we define a window size of 3. If no
 - [x] ZNCC algorithm 
 - [x] Compute the disparity images for both input images
 - [x] Implement the post-processing including cross-check and occlusion filling
-- [ ] Measure the total execution time of the implementation
+- [x] Measure the total execution time of the implementation
 - [x] Comment the code and make a documentation
 
 **Impoved occlusion, but still some holes on the picture**

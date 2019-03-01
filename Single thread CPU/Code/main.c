@@ -4,6 +4,7 @@
 #include <string.h>
 #include <SDL/SDL.h>
 #include <math.h>
+#include <Windows.h>
 
 int show(const char* filename) { // Display the image using SDL library. Exemple from LodePNG library.
   unsigned error;
@@ -567,6 +568,14 @@ void occlusion_filling(const char* input, const char* output){ // Fill the holes
 
 int main(int argc, char* argv[]){
 
+	LARGE_INTEGER clockFrequency;
+	QueryPerformanceFrequency(&clockFrequency);
+
+	LARGE_INTEGER startTime;
+	LARGE_INTEGER endTime;
+
+	QueryPerformanceCounter(&startTime);
+
 	transform_grey("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im0.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_left.png");
 	transform_grey("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im1.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_right.png");
 	resize("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png");
@@ -575,6 +584,15 @@ int main(int argc, char* argv[]){
 	ZNCC_left("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", 9);
 	cross_checking("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth1.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/cross_check.png");
 	occlusion_filling("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/cross_check.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/occlusion.png");
+
+	QueryPerformanceCounter(&endTime);
+
+	LARGE_INTEGER delta;
+
+	delta.QuadPart = endTime.QuadPart - startTime.QuadPart;
+	float deltaSeconds = (float)delta.QuadPart / clockFrequency.QuadPart;
+
+	printf("Execution time:\t%f s", deltaSeconds);
 
 	return 0;
 
