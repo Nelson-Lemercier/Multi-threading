@@ -207,9 +207,9 @@ void ZNCC_right(const char* input_left, const char* input_right, const char* out
 	error = lodepng_decode32_file(&image_right, &width, &height, input_right);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	Uint32 value_left, value_right, sum_left, sum_right, meanValueLeft, meanValueRight, upperSum, lowerSum_0, lowerSum_1, bestDisp; // Declaration of the integers used in the algorithm
+	Uint32 value_left, value_right, sum_left, sum_right, bestDisp; // Declaration of the integers used in the algorithm
 
-	float znccValue, maxSum; // Declaration of the floats used in the algorithm
+	double znccValue, maxSum, upperSum, lowerSum_0, lowerSum_1, meanValueLeft, meanValueRight; // Declaration of the floats used in the algorithm
 
 	unsigned max_disp = 65; // The suggested maximum disparity is 260, the image is 4 times smaller
 
@@ -243,8 +243,8 @@ void ZNCC_right(const char* input_left, const char* input_right, const char* out
 
 				}
 
-				meanValueLeft = sum_left / (sizeWindow * sizeWindow);
-				meanValueRight = sum_right / (sizeWindow * sizeWindow);
+				meanValueLeft = (double)sum_left / (sizeWindow * sizeWindow);
+				meanValueRight = (double)sum_right / (sizeWindow * sizeWindow);
 
 				upperSum = 0; lowerSum_0 = 0; lowerSum_1 = 0;
 
@@ -275,7 +275,7 @@ void ZNCC_right(const char* input_left, const char* input_right, const char* out
 			}
 
 
-			int depthValue = ceil((255 / max_disp) * bestDisp); // Normalization of the result
+			int depthValue = ceil(((double)255 / max_disp) * bestDisp); // Normalization of the result
 
 			// Saving the result in the ouput image
 
@@ -314,9 +314,9 @@ void ZNCC_left(const char* input_left, const char* input_right, const char* outp
 	error = lodepng_decode32_file(&image_right, &width, &height, input_right);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	Uint32 value_left, value_right, sum_left, sum_right, meanValueLeft, meanValueRight, upperSum, lowerSum_0, lowerSum_1, bestDisp; // Declaration of the integers used in the algorithm
+	Uint32 value_left, value_right, sum_left, sum_right, bestDisp; // Declaration of the integers used in the algorithm
 
-	float znccValue, maxSum; // Declaration of the floats used in the algorithm
+	double znccValue, maxSum, upperSum, lowerSum_0, lowerSum_1, meanValueLeft, meanValueRight; // Declaration of the floats used in the algorithm
 
 	unsigned max_disp = 65; // The suggested maximum disparity is 260, the image is 4 times smaller
 
@@ -350,8 +350,8 @@ void ZNCC_left(const char* input_left, const char* input_right, const char* outp
 
 				}
 
-				meanValueLeft = sum_left / (sizeWindow * sizeWindow);
-				meanValueRight = sum_right / (sizeWindow * sizeWindow);
+				meanValueLeft = (double)sum_left / (sizeWindow * sizeWindow);
+				meanValueRight = (double)sum_right / (sizeWindow * sizeWindow);
 
 				upperSum = 0; lowerSum_0 = 0; lowerSum_1 = 0;
 
@@ -381,7 +381,7 @@ void ZNCC_left(const char* input_left, const char* input_right, const char* outp
 
 			}
 
-			int depthValue = ceil((255 / max_disp) * bestDisp); // Normalization of the result
+			int depthValue = ceil(((double)255 / max_disp) * bestDisp); // Normalization of the result
 
 			// Saving the result in the ouput image
 
@@ -420,6 +420,9 @@ void cross_checking(const char* input1, const char* input2, const char* output){
 	error = lodepng_decode32_file(&image2, &width, &height, input2);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
+	unsigned dValue1 = 0;
+	unsigned dValue2 = 0;
+
 	unsigned char* checkedImage = malloc(width * height * 4); // Declaration of the output image and memory allocation
 
 	// For each pixel of the two input images
@@ -428,7 +431,12 @@ void cross_checking(const char* input1, const char* input2, const char* output){
 
 		for(int w = 0; w < width; w++){
 
-			if( abs( image1[4 * width * h + 4 * w] - image2[4 * width * h + 4 * w] ) < 8 ){ // If the difference between the value of image 1 and 2 is superior than the threshold
+			// We get back to the "disparity scale" before the normalization
+
+			dValue1 = ceil(((double)64 / 255) * image1[4 * width * h + 4 * w]);
+			dValue2 = ceil(((double)64 / 255) * image2[4 * width * h + 4 * w]);
+
+			if( abs( dValue1 - dValue2 ) < 8 ){ // If the difference between the value of image 1 and 2 is inferior to the threshold
 
 				value = image1[4 * width * h + 4 * w]; // We take the value of the first image
 

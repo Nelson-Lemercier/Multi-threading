@@ -33,4 +33,6 @@ Apply an occlusion filling algorithm. First, we define a window size of 3. If no
 - [x] Measure the total execution time of the implementation
 - [x] Comment the code and make a documentation
 
-**Impoved occlusion, but still some holes on the picture**
+## Time of execution
+
+Average on 5 trials: 193,485321 seconds
