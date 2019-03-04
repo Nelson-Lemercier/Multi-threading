@@ -75,7 +75,20 @@ int show(const char* filename) { // Display the image using SDL library. Exemple
 
 }
 
-void transform_grey(const char* input, const char* output){ //Transform a RGBA image to a grey image (still in RGBA format)
+const char* createPath(const char* folder, const char* nameImage){
+
+	int lengthOutput = strlen(folder) + strlen(nameImage) + 5; // .png + \n character
+	char* output = malloc(lengthOutput);
+
+	strcpy(output, folder);
+	strcat(output, nameImage);
+	strcat(output, ".png");
+
+	return output;
+
+}
+
+void transform_grey(const char* folder, const char* nameImageInput, const char* nameImageOutput){ //Transform a RGBA image to a grey image (still in RGBA format)
 
 	// Initialisation of the variables and decoding of the input image
 
@@ -84,6 +97,9 @@ void transform_grey(const char* input, const char* output){ //Transform a RGBA i
 
 	unsigned char* image;
 	unsigned error;
+
+	const char* input = createPath(folder, nameImageInput);
+	const char* output = createPath(folder, nameImageOutput);
 
 	error = lodepng_decode32_file(&image, &width, &height, input);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
@@ -127,7 +143,7 @@ void transform_grey(const char* input, const char* output){ //Transform a RGBA i
 
 }
 
-void resize(const char* input, const char* output){ // Resize the image by taking every fourth pixel
+void resize(const char* folder, const char* nameImageInput, const char* nameImageOutput){ // Resize the image by taking every fourth pixel
 
 	// Initialisation of the variables and decoding of the input image
 
@@ -136,6 +152,9 @@ void resize(const char* input, const char* output){ // Resize the image by takin
 
 	unsigned char* image;
 	unsigned error;
+
+	const char* input = createPath(folder, nameImageInput);
+	const char* output = createPath(folder, nameImageOutput);
 
 	error = lodepng_decode32_file(&image, &width, &height, input);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
@@ -190,7 +209,7 @@ void resize(const char* input, const char* output){ // Resize the image by takin
 
 }
 
-void ZNCC_right(const char* input_left, const char* input_right, const char* output, int sizeWindow){ // Apply the ZNCC algorithm on the right image (the disparity will be applied on the right image)
+void ZNCC_right(const char* folder, const char* nameImageInputLeft, const char* nameImageInputRight, const char* nameImageOutput, int sizeWindow){ // Apply the ZNCC algorithm on the right image (the disparity will be applied on the right image)
 
 	// Initialisation of the variables and decoding of the input images
 
@@ -200,6 +219,10 @@ void ZNCC_right(const char* input_left, const char* input_right, const char* out
 	unsigned char* image_left;
 	unsigned char* image_right;
 	unsigned error;
+
+	const char* input_left = createPath(folder, nameImageInputLeft);
+	const char* input_right = createPath(folder, nameImageInputRight);
+	const char* output = createPath(folder, nameImageOutput);
 
 	error = lodepng_decode32_file(&image_left, &width, &height, input_left);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
@@ -297,7 +320,7 @@ void ZNCC_right(const char* input_left, const char* input_right, const char* out
 
 }
 
-void ZNCC_left(const char* input_left, const char* input_right, const char* output, int sizeWindow){ // Apply the ZNCC algorithm on the left image (the disparity will be applied on the left image)
+void ZNCC_left(const char* folder, const char* nameImageInputLeft, const char* nameImageInputRight, const char* nameImageOutput, int sizeWindow){ // Apply the ZNCC algorithm on the left image (the disparity will be applied on the left image)
 
 	// Initialisation of the variables and decoding of the input images
 
@@ -307,6 +330,10 @@ void ZNCC_left(const char* input_left, const char* input_right, const char* outp
 	unsigned char* image_left;
 	unsigned char* image_right;
 	unsigned error;
+
+	const char* input_left = createPath(folder, nameImageInputLeft);
+	const char* input_right = createPath(folder, nameImageInputRight);
+	const char* output = createPath(folder, nameImageOutput);
 
 	error = lodepng_decode32_file(&image_left, &width, &height, input_left);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
@@ -402,7 +429,7 @@ void ZNCC_left(const char* input_left, const char* input_right, const char* outp
 
 }
 
-void cross_checking(const char* input1, const char* input2, const char* output){ // Take the two depth map as input and gives and cross checked image as output
+void cross_checking(const char* folder, const char* nameImage1, const char* nameImage2, const char* nameImageOutput){ // Take the two depth map as input and gives and cross checked image as output
 
 	// Initialisation of the variables and decoding of the input images
 
@@ -413,6 +440,10 @@ void cross_checking(const char* input1, const char* input2, const char* output){
 	unsigned char* image2;
 	unsigned error;
 	unsigned value;
+
+	const char* input1 = createPath(folder, nameImage1);
+	const char* input2 = createPath(folder, nameImage2);
+	const char* output = createPath(folder, nameImageOutput);
 
 	error = lodepng_decode32_file(&image1, &width, &height, input1);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
@@ -473,7 +504,7 @@ void cross_checking(const char* input1, const char* input2, const char* output){
 
 }
 
-void occlusion_filling(const char* input, const char* output){ // Fill the holes done during the cross checking
+void occlusion_filling(const char* folder, const char* nameImageInput, const char* nameImageOutput){ // Fill the holes done during the cross checking
 
 	// Initialisation of the variables and decoding of the input images
 
@@ -482,6 +513,9 @@ void occlusion_filling(const char* input, const char* output){ // Fill the holes
 	unsigned error;
 
 	unsigned char* image;
+
+	const char* input = createPath(folder, nameImageInput);
+	const char* output = createPath(folder, nameImageOutput);
 
 	error = lodepng_decode32_file(&image, &width, &height, input);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
@@ -574,6 +608,8 @@ void occlusion_filling(const char* input, const char* output){ // Fill the holes
 
 }
 
+
+
 int main(int argc, char* argv[]){
 
 	LARGE_INTEGER clockFrequency;
@@ -584,14 +620,16 @@ int main(int argc, char* argv[]){
 
 	QueryPerformanceCounter(&startTime);
 
-	transform_grey("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im0.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_left.png");
-	transform_grey("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im1.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_right.png");
-	resize("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png");
-	resize("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey_right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png");
-	ZNCC_right("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth1.png", 9);
-	ZNCC_left("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", 9);
-	cross_checking("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth1.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/depth2.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/cross_check.png");
-	occlusion_filling("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/cross_check.png", "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/occlusion.png");
+	char* imageFolder = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/";
+
+	transform_grey(imageFolder, "im0", "grey_left");
+	transform_grey(imageFolder, "im1", "grey_right");
+	resize(imageFolder, "grey_left", "left");
+	resize(imageFolder, "grey_right", "right");
+	ZNCC_right(imageFolder, "left", "right", "depth1", 9);
+	ZNCC_left(imageFolder, "left", "right", "depth2", 9);
+	cross_checking(imageFolder, "depth1", "depth2", "cross_check");
+	occlusion_filling(imageFolder, "cross_check", "occlusion");
 
 	QueryPerformanceCounter(&endTime);
 
