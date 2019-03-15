@@ -54,7 +54,7 @@ Average on 5 trials: 193,485321 seconds
 ## TODO
 
 - [x] CPU parallelization and multithreading
-- [ ] Implementation of the OpenCL kernels
+- [x] Implementation of the OpenCL kernels
 
 ## Time of execution
 
