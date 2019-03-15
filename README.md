@@ -48,3 +48,14 @@ Apply an occlusion filling algorithm. First, we define a window size of 3. If no
 ## Time of execution
 
 Average on 5 trials: 193,485321 seconds
+
+# Multi thread CPU
+
+## TODO
+
+- [x] CPU parallelization and multithreading
+- [ ] Implementation of the OpenCL kernels
+
+## Time of execution
+
+Average on 5 trials: 42.154733 seconds
