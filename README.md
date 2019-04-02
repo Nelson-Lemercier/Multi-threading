@@ -59,3 +59,12 @@ Average on 5 trials: 193,485321 seconds
 ## Time of execution
 
 Average on 5 trials: 42.154733 seconds
+
+# Multi thread GPU OpenCL
+
+## TODO
+
+- [ ] Implement the algorithm using OpenCL and a GPU
+- [ ] Start the optimization of the OpenCL kernels required in the next phase
+
+Modified the grey transformation kernel to use image objects and implemented the platforms, context, queues etc. Everything seemes to work, however, the output image cannot be read.
