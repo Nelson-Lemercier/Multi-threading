@@ -74,7 +74,7 @@ int main (int argc, const char * argv[]) {
 
     //*************************************************************************************************************
 
-    // Creating context and command queue
+    // Creating the context
 
     context = clCreateContext(NULL, 1, &GPU, NULL, NULL, &err);
 
@@ -83,6 +83,8 @@ int main (int argc, const char * argv[]) {
     	printf("\nError during the creation of the context: %d\n", err);
 
     }
+
+    // Creating the command queue
 
     cmd_queue = clCreateCommandQueue(context, GPU, 0, &err);
 
@@ -94,7 +96,7 @@ int main (int argc, const char * argv[]) {
 
     // Source code
 
-    char* source = {
+    char* transform_grey_source = {
 
 		"kernel void transform_grey(read_only image2d_t image, write_only image2d_t grey_image){\n"
     	"const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n"
@@ -109,7 +111,7 @@ int main (int argc, const char * argv[]) {
     	"values.x = grey_value;\n"
 		"values.y = grey_value;\n"
 		"values.z = grey_value;\n"
-		"values.w = grey_value;\n"
+		"values.w = 255;\n"
 		"write_imageui(grey_image, coord, values);\n"
 		"}\n"
 
@@ -117,7 +119,7 @@ int main (int argc, const char * argv[]) {
 
     // Get the program and compile it
 
-	program = clCreateProgramWithSource(context, 1, (const char**)&source, NULL, &err);
+	program = clCreateProgramWithSource(context, 1, (const char**)&transform_grey_source, NULL, &err);
 
 	if(err != CL_SUCCESS){
 
@@ -133,11 +135,7 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	cl_char log[2048] = { 0 };
-
-	clGetProgramBuildInfo(program, GPU, CL_PROGRAM_BUILD_LOG, sizeof(log), &log, NULL);
-
-	printf("log : %s", log);
+	// Create the kernel
 
 	kernel = clCreateKernel(program, "transform_grey", &err);
 
@@ -151,15 +149,15 @@ int main (int argc, const char * argv[]) {
 
 	unsigned width;
 	unsigned height;
-
-	unsigned char* image = malloc(width * height * 4);
-	unsigned char* output = malloc(width * height * 4);
+	unsigned char* image;
 	unsigned error;
 
 	const char* input = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im0.png";
 
 	error = lodepng_decode32_file(&image, &width, &height, input);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	unsigned char* output = malloc(sizeof(unsigned char) * width * height * 4);
 
 	// Create the input and output buffers
 
@@ -168,19 +166,23 @@ int main (int argc, const char * argv[]) {
 	cl_image_format format;
 
 	format.image_channel_order = CL_RGBA;
-	format.image_channel_data_type = CL_UNSIGNED_INT32;
+	format.image_channel_data_type = CL_UNSIGNED_INT8;
 
-	input_image = clCreateImage2D(context, CL_MEM_READ_ONLY, &format, (size_t)width, (size_t)height, 0, (char*)image, &err);
-	output_image = clCreateImage2D(context, CL_MEM_WRITE_ONLY, &format, (size_t)width, (size_t)height, 0, /*(char*)output*/NULL, &err);
-
-
+	input_image = clCreateImage2D(context, CL_MEM_READ_ONLY, &format, (size_t)width, (size_t)height, 0, NULL, &err);
+	output_image = clCreateImage2D(context, CL_MEM_WRITE_ONLY, &format, (size_t)width, (size_t)height, 0, NULL, &err);
+	
 	if(err != CL_SUCCESS){
 
 		printf("\nUnable to create the images objects: %d\n", err);
 
 	}
+	
+	// Write the input image 
 
-	clFinish(cmd_queue);
+    size_t origin[3] = {0, 0, 0};
+	size_t region[3] = {width, height, 1};
+	
+	err = clEnqueueWriteImage(cmd_queue, input_image, CL_TRUE, origin, region, 0, 0, (void*)image, 0, 0, 0);
 
 	// Set the kernel arguments
 
@@ -196,9 +198,10 @@ int main (int argc, const char * argv[]) {
 	// Enqueue the kernel
 
 	size_t global_work_size[2] = { width, height };
-	size_t local_work_size[2] = {1, 1};
+	size_t global_work_offset[2] = { 0, 0 };
+	size_t local_work_size[2] = { 1, 1 };
 
-	err = clEnqueueNDRangeKernel(cmd_queue, kernel, 2, 0, global_work_size, local_work_size, 0, 0, 0);
+	err = clEnqueueNDRangeKernel(cmd_queue, kernel, 2, global_work_offset, global_work_size, local_work_size, 0, 0, 0);
 
 	if(err != CL_SUCCESS){
 
@@ -206,36 +209,26 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	clFinish(cmd_queue);
-
 	//Read the result
 
-	size_t origin[3] = {0, 0, 0};
-	size_t region[3] = {1, 1, 1};
-
-	cl_image_format info;
-
-	if(err != CL_SUCCESS){
-
-		printf("\nUnable to get image info: %d\n", err);
-
-	}
-
-
-	err = clEnqueueReadImage(cmd_queue, output_image, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
+	err = clEnqueueReadImage(cmd_queue, output_image, CL_TRUE, origin, region, 11760, 0, output, 0, 0, 0);
 	if(err != CL_SUCCESS){
 
 		printf("\nError clEnqueueReadImage: %d\n", err);
 
 	}
 
+	clFinish(cmd_queue);
+
 	// Encode the result in a output image
 
-//	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test.png", output, width, height);
-//	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test.png", output, width, height);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
 	clReleaseMemObject(input_image);
 	clReleaseMemObject(output_image);
+	clReleaseKernel(kernel);
+	clReleaseProgram(program);
 	clReleaseCommandQueue(cmd_queue);
 	clReleaseContext(context);
 

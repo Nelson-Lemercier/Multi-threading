@@ -64,7 +64,25 @@ Average on 5 trials: 42.154733 seconds
 
 ## TODO
 
+**Kernels to modify**
+
+- [x] Transform grey
+- [ ] Resize
+- [ ] ZNCC left
+- [ ] ZNCC right
+- [ ] cross checking
+- [ ] occlusion filling
+________________________________________________________________________________________
+
+**Secondary tasks**
+
+- [ ] Comments and documentation
+- [ ] Refactoring
+- [ ] Implement a function to read kernels' source code from files
+
+________________________________________________________________________________________
+
+**General tasks**
+
 - [ ] Implement the algorithm using OpenCL and a GPU
 - [ ] Start the optimization of the OpenCL kernels required in the next phase
-
-Modified the grey transformation kernel to use image objects and implemented the platforms, context, queues etc. Everything seemes to work, however, the output image cannot be read.
