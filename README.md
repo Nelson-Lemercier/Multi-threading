@@ -67,8 +67,8 @@ Average on 5 trials: 42.154733 seconds
 **Kernels to modify**
 
 - [x] Transform grey
-- [ ] Resize
-- [ ] ZNCC left
+- [X] Resize
+- [ ] ZNCC left **In progress**
 - [ ] ZNCC right
 - [ ] cross checking
 - [ ] occlusion filling

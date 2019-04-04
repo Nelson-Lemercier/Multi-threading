@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include <CL/cl.h>
 #include <lodePNG.h>
 
@@ -117,9 +118,70 @@ int main (int argc, const char * argv[]) {
 
     };
 
+    char* resize_source = {
+
+		"kernel void resize(read_only image2d_t input_image, write_only image2d_t resize_image){\n"
+		"const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n"
+		"int2 coord = (int2)(get_global_id(0), get_global_id(1));\n"
+			"if( coord.x % 4 == 0 && coord.y % 4 == 0){\n"
+			"uint4 values = read_imageui(input_image, smp, coord);\n"
+			"coord.x /= 4;\n"
+			"coord.y /= 4;\n;"
+			"write_imageui(resize_image, coord, values);\n"
+			"}\n"
+    	"}\n"
+    };
+
+    char* ZNCC_left = {
+
+		"kernel void ZNCC_left(read_only image2d_t image_left, read_only image2d_t image_right, write_only image2d_t output, unsigned int sizeWindow, unsigned int halfWindow, unsigned int max_disp){\n"
+			"const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n"
+			"int2 coord = (int2)(get_global_id(0), get_global_id(1));\n"
+    		"uint4 value_left, value_right;\n"
+			"double maxSum = 0; unsigned int bestDisp = 0;\n"
+			"for(int d = 0; d < max_disp; d++){\n"
+				"unsigned int sum_left, sum_right;\n"
+				"for(int j = coord.y - halfWindow; j < coord.y + halfWindow; j++){\n"
+					"for(int i = coord.x - halfWindow; i < coord.x + halfWindow; i++){\n"
+						"int2 coordLeft = (int2)(i + d, j);\n"
+						"int2 coordRight = (int2)(i, j);\n"
+						"value_left = read_imageui(image_left, smp, coordLeft);\n"
+						"value_right = read_imageui(image_left, smp, coordRight);\n"
+						"sum_left += value_left.x;\n"
+						"sum_right += value_right.x;\n"
+					"}\n"
+				"}\n"
+				"double znccValue, maxSum, upperSum, lowerSum_0, lowerSum_1, meanValueLeft, meanValueRight = 0;\n"
+				"meanValueLeft = (double)sum_left / (sizeWindow * sizeWindow);\n"
+				"meanValueRight = (double)sum_right / (sizeWindow * sizeWindow);\n"
+				"for(int j = coord.y - halfWindow; j < coord.y + halfWindow; j++){\n"
+					"for(int i = coord.x - halfWindow; i < coord.x + halfWindow; i++){\n"
+						"int2 coordLeft = (int2)(i + d, j);\n"
+						"int2 coordRight = (int2)(i, j);\n"
+						"value_left = read_imageui(image_left, smp, coordLeft);\n"
+						"value_right = read_imageui(image_left, smp, coordRight);\n"
+						"upperSum += (value_left.x - meanValueLeft) * (value_right.x - meanValueRight);\n"
+						"lowerSum_0 += (value_left.x - meanValueLeft) * (value_left.x - meanValueLeft);\n"
+						"lowerSum_1 += (value_right.x - meanValueRight) * (value_right.x - meanValueRight);\n"
+					"}\n"
+				"}\n"
+
+				"znccValue = upperSum / (sqrt(lowerSum_0) * sqrt(lowerSum_1));\n"
+
+				"if(znccValue > maxSum){\n"
+					"maxSum = znccValue;\n"
+					"bestDisp = d;\n"
+				"}\n"
+			"}\n"
+    		"int depthValue = ceil(((double)255 / max_disp) * bestDisp);\n"
+    		"write_imageui(output, coord, depthValue);\n"
+		"}\n"
+
+    };
+
     // Get the program and compile it
 
-	program = clCreateProgramWithSource(context, 1, (const char**)&transform_grey_source, NULL, &err);
+	program = clCreateProgramWithSource(context, 1, (const char**)&ZNCC_left, NULL, &err);
 
 	if(err != CL_SUCCESS){
 
@@ -135,9 +197,15 @@ int main (int argc, const char * argv[]) {
 
 	}
 
+	cl_char log[3600];
+
+	err = clGetProgramBuildInfo(program, GPU, CL_PROGRAM_BUILD_LOG, sizeof(log), &log, NULL);
+
+	printf("log: %s\n", log);
+
 	// Create the kernel
 
-	kernel = clCreateKernel(program, "transform_grey", &err);
+	kernel = clCreateKernel(program, "ZNCC_left", &err);
 
 	if(err != CL_SUCCESS){
 
@@ -145,49 +213,59 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	// Read the input image
+	// Read the input images
 
 	unsigned width;
 	unsigned height;
-	unsigned char* image;
+	unsigned char* leftImage;
+	unsigned char* rightImage;
 	unsigned error;
 
-	const char* input = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im0.png";
+	const char* leftImagePath = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png";
+	const char* rightImagePath = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png";
 
-	error = lodepng_decode32_file(&image, &width, &height, input);
+	error = lodepng_decode32_file(&leftImage, &width, &height, leftImagePath);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	error = lodepng_decode32_file(&rightImage, &width, &height, rightImagePath);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
 	unsigned char* output = malloc(sizeof(unsigned char) * width * height * 4);
 
 	// Create the input and output buffers
 
-	cl_mem input_image, output_image;
+	cl_mem input_image_left, input_image_right, output_image;
 
 	cl_image_format format;
 
 	format.image_channel_order = CL_RGBA;
 	format.image_channel_data_type = CL_UNSIGNED_INT8;
 
-	input_image = clCreateImage2D(context, CL_MEM_READ_ONLY, &format, (size_t)width, (size_t)height, 0, NULL, &err);
+	input_image_left = clCreateImage2D(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &format, (size_t)width, (size_t)height, 0, (void*)leftImage, &err);
+	input_image_right = clCreateImage2D(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &format, (size_t)width, (size_t)height, 0, (void*)rightImage, &err);
 	output_image = clCreateImage2D(context, CL_MEM_WRITE_ONLY, &format, (size_t)width, (size_t)height, 0, NULL, &err);
-	
+
+	size_t origin[3] = {0, 0, 0};
+	size_t region[3] = {width, height, 1};
+
 	if(err != CL_SUCCESS){
 
 		printf("\nUnable to create the images objects: %d\n", err);
 
 	}
-	
-	// Write the input image 
-
-    size_t origin[3] = {0, 0, 0};
-	size_t region[3] = {width, height, 1};
-	
-	err = clEnqueueWriteImage(cmd_queue, input_image, CL_TRUE, origin, region, 0, 0, (void*)image, 0, 0, 0);
 
 	// Set the kernel arguments
 
-	err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &input_image);
-	err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &output_image);
+	unsigned int sizeWindow = 9;
+	unsigned int max_disp = 65;
+	unsigned int halfWindowSize = floor(sizeWindow / 2);
+
+	err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &input_image_left);
+	err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &input_image_right);
+	err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &output_image);
+	err |= clSetKernelArg(kernel, 3, sizeof(unsigned int), &sizeWindow);
+	err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &halfWindowSize);
+	err |= clSetKernelArg(kernel, 5, sizeof(unsigned int), &max_disp);
 
 	if(err != CL_SUCCESS){
 
@@ -197,8 +275,8 @@ int main (int argc, const char * argv[]) {
 
 	// Enqueue the kernel
 
-	size_t global_work_size[2] = { width, height };
-	size_t global_work_offset[2] = { 0, 0 };
+	size_t global_work_size[2] = { width - 3, height - 13 };
+	size_t global_work_offset[2] = { 3, 3 };
 	size_t local_work_size[2] = { 1, 1 };
 
 	err = clEnqueueNDRangeKernel(cmd_queue, kernel, 2, global_work_offset, global_work_size, local_work_size, 0, 0, 0);
@@ -211,7 +289,7 @@ int main (int argc, const char * argv[]) {
 
 	//Read the result
 
-	err = clEnqueueReadImage(cmd_queue, output_image, CL_TRUE, origin, region, 11760, 0, output, 0, 0, 0);
+	err = clEnqueueReadImage(cmd_queue, output_image, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
 	if(err != CL_SUCCESS){
 
 		printf("\nError clEnqueueReadImage: %d\n", err);
@@ -222,17 +300,19 @@ int main (int argc, const char * argv[]) {
 
 	// Encode the result in a output image
 
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test.png", output, width, height);
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_depth.png", output, width, height);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	clReleaseMemObject(input_image);
+	clReleaseMemObject(input_image_left);
+	clReleaseMemObject(input_image_right);
 	clReleaseMemObject(output_image);
 	clReleaseKernel(kernel);
 	clReleaseProgram(program);
 	clReleaseCommandQueue(cmd_queue);
 	clReleaseContext(context);
 
-	free(image);
+	free(leftImage);
+	free(rightImage);
 	free(output);
 
     return 0;
