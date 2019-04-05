@@ -137,29 +137,30 @@ int main (int argc, const char * argv[]) {
 		"kernel void ZNCC_left(read_only image2d_t image_left, read_only image2d_t image_right, write_only image2d_t output, unsigned int sizeWindow, unsigned int halfWindow, unsigned int max_disp){\n"
 			"const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n"
 			"int2 coord = (int2)(get_global_id(0), get_global_id(1));\n"
+    		"uint4 values = (uint4)(0, 0, 0, 0);\n"
     		"uint4 value_left, value_right;\n"
 			"double maxSum = 0; unsigned int bestDisp = 0;\n"
 			"for(int d = 0; d < max_disp; d++){\n"
-				"unsigned int sum_left, sum_right;\n"
-				"for(int j = coord.y - halfWindow; j < coord.y + halfWindow; j++){\n"
-					"for(int i = coord.x - halfWindow; i < coord.x + halfWindow; i++){\n"
+				"unsigned int sum_left, sum_right = 0;\n"
+				"for(int j = coord.y - halfWindow; j <= coord.y + halfWindow; j++){\n"
+					"for(int i = coord.x - halfWindow; i <= coord.x + halfWindow; i++){\n"
 						"int2 coordLeft = (int2)(i + d, j);\n"
 						"int2 coordRight = (int2)(i, j);\n"
 						"value_left = read_imageui(image_left, smp, coordLeft);\n"
-						"value_right = read_imageui(image_left, smp, coordRight);\n"
+						"value_right = read_imageui(image_right, smp, coordRight);\n"
 						"sum_left += value_left.x;\n"
 						"sum_right += value_right.x;\n"
 					"}\n"
 				"}\n"
-				"double znccValue, maxSum, upperSum, lowerSum_0, lowerSum_1, meanValueLeft, meanValueRight = 0;\n"
+				"double znccValue, upperSum, lowerSum_0, lowerSum_1, meanValueLeft, meanValueRight = 0;\n"
 				"meanValueLeft = (double)sum_left / (sizeWindow * sizeWindow);\n"
 				"meanValueRight = (double)sum_right / (sizeWindow * sizeWindow);\n"
-				"for(int j = coord.y - halfWindow; j < coord.y + halfWindow; j++){\n"
-					"for(int i = coord.x - halfWindow; i < coord.x + halfWindow; i++){\n"
+				"for(int j = coord.y - halfWindow; j <= coord.y + halfWindow; j++){\n"
+					"for(int i = coord.x - halfWindow; i <= coord.x + halfWindow; i++){\n"
 						"int2 coordLeft = (int2)(i + d, j);\n"
 						"int2 coordRight = (int2)(i, j);\n"
 						"value_left = read_imageui(image_left, smp, coordLeft);\n"
-						"value_right = read_imageui(image_left, smp, coordRight);\n"
+						"value_right = read_imageui(image_right, smp, coordRight);\n"
 						"upperSum += (value_left.x - meanValueLeft) * (value_right.x - meanValueRight);\n"
 						"lowerSum_0 += (value_left.x - meanValueLeft) * (value_left.x - meanValueLeft);\n"
 						"lowerSum_1 += (value_right.x - meanValueRight) * (value_right.x - meanValueRight);\n"
@@ -167,14 +168,17 @@ int main (int argc, const char * argv[]) {
 				"}\n"
 
 				"znccValue = upperSum / (sqrt(lowerSum_0) * sqrt(lowerSum_1));\n"
-
 				"if(znccValue > maxSum){\n"
 					"maxSum = znccValue;\n"
 					"bestDisp = d;\n"
 				"}\n"
 			"}\n"
-    		"int depthValue = ceil(((double)255 / max_disp) * bestDisp);\n"
-    		"write_imageui(output, coord, depthValue);\n"
+    		"unsigned int depthValue = ceil(((double)255 / max_disp) * bestDisp);\n"
+    		"values.x = depthValue;\n"
+    		"values.y = depthValue;\n"
+    		"values.z = depthValue;\n"
+    		"values.w = 255;\n"
+    		"write_imageui(output, coord, values);\n"
 		"}\n"
 
     };
@@ -245,9 +249,6 @@ int main (int argc, const char * argv[]) {
 	input_image_right = clCreateImage2D(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &format, (size_t)width, (size_t)height, 0, (void*)rightImage, &err);
 	output_image = clCreateImage2D(context, CL_MEM_WRITE_ONLY, &format, (size_t)width, (size_t)height, 0, NULL, &err);
 
-	size_t origin[3] = {0, 0, 0};
-	size_t region[3] = {width, height, 1};
-
 	if(err != CL_SUCCESS){
 
 		printf("\nUnable to create the images objects: %d\n", err);
@@ -275,8 +276,8 @@ int main (int argc, const char * argv[]) {
 
 	// Enqueue the kernel
 
-	size_t global_work_size[2] = { width - 3, height - 13 };
-	size_t global_work_offset[2] = { 3, 3 };
+	size_t global_work_size[2] = { width - 8 - max_disp, height - 8 };
+	size_t global_work_offset[2] = { 4, 4 };
 	size_t local_work_size[2] = { 1, 1 };
 
 	err = clEnqueueNDRangeKernel(cmd_queue, kernel, 2, global_work_offset, global_work_size, local_work_size, 0, 0, 0);
@@ -289,6 +290,9 @@ int main (int argc, const char * argv[]) {
 
 	//Read the result
 
+	size_t origin[3] = {0, 0, 0};
+	size_t region[3] = {width - 8, height - 8, 1};
+
 	err = clEnqueueReadImage(cmd_queue, output_image, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
 	if(err != CL_SUCCESS){
 
@@ -300,7 +304,10 @@ int main (int argc, const char * argv[]) {
 
 	// Encode the result in a output image
 
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_depth.png", output, width, height);
+	unsigned width2 = width - 8;
+	unsigned height2 = height - 8;
+
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_depth.png", output, width2, height2);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
 	clReleaseMemObject(input_image_left);
