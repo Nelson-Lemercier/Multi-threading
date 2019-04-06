@@ -2,6 +2,7 @@
 Multi-threading course project
 
 # Documentation
+## Functions
 
 ```createPath(const char* folder, const char* nameImage)```
 Return the full path to the image folder with the image name and a PNG extension to read or write images in the folder.
@@ -27,12 +28,36 @@ Make a cross checking validation and gives one result image.
 ```occlusion_filling(imageFolder, input image name, output image name)```
 Apply an occlusion filling algorithm. First, we define a window size of 3. If no pixel different from 0 is found, we add 2 to the window size and compute again.
 
+## Kernels
+
+```kernel void transform_grey(read_only image2d_t image, write_only image2d_t grey_image)```
+
+```kernel void resize(read_only image2d_t input_image, write_only image2d_t resize_image)```
+
+```kernel void ZNCC_left(read_only image2d_t image_left, read_only image2d_t image_right, write_only image2d_t output, unsigned int sizeWindow, unsigned int halfWindow, unsigned int max_disp)```
+
+```kernel void ZNCC_right(read_only image2d_t image_left, read_only image2d_t image_right, write_only image2d_t output, unsigned int sizeWindow, unsigned int halfWindow, unsigned int max_disp)```
+
+```kernel void cross_checking(read_only image2d_t depth_left, read_only image2d_t depth_right, write_only image2d_t cross_checking)```
+
 # Configuration
 
 - **CPU**:  Intel(R) Core(TM) i5-8250U CPU @1.60GHz 1.80GHz 
             4 physical cores / 8 logic cores
 
 - **GPU**:  NVIDIA GeForce MX150
+
+# Specification CPU
+
+- local_mem_size: 49152
+- max_compute_units: 3
+- max_clock_frequency: 1531
+- max_constant_buffer_size: 65536
+- max_work_group_size: 1024
+- max_work_item_size	
+    - x: 1024 
+    - y: 1024 
+    - z: 64
 
 # Single thread CPU
 ## TODO
@@ -70,7 +95,7 @@ Average on 5 trials: 42.154733 seconds
 - [x] Resize
 - [x] ZNCC left **Return a similar image but a bit too dark**
 - [x] ZNCC right **Return a similar image but a too bright**
-- [ ] cross checking **Implmented but not tested**
+- [x] cross checking
 - [ ] occlusion filling
 ________________________________________________________________________________________
 
