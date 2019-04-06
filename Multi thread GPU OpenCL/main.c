@@ -263,7 +263,7 @@ int main (int argc, const char * argv[]) {
 
     // Get the program and compile it
 
-	program = clCreateProgramWithSource(context, 1, (const char**)&ZNCC_right_source, NULL, &err);
+	program = clCreateProgramWithSource(context, 1, (const char**)&cross_checking_source, NULL, &err);
 
 	if(err != CL_SUCCESS){
 
@@ -287,7 +287,7 @@ int main (int argc, const char * argv[]) {
 
 	// Create the kernel
 
-	kernel = clCreateKernel(program, "ZNCC_right", &err);
+	kernel = clCreateKernel(program, "cross_checking", &err);
 
 	if(err != CL_SUCCESS){
 
@@ -303,8 +303,8 @@ int main (int argc, const char * argv[]) {
 	unsigned char* rightImage;
 	unsigned error;
 
-	const char* leftImagePath = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png";
-	const char* rightImagePath = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png";
+	const char* leftImagePath = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_depth.png";
+	const char* rightImagePath = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_depth2.png";
 
 	error = lodepng_decode32_file(&leftImage, &width, &height, leftImagePath);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
@@ -335,16 +335,12 @@ int main (int argc, const char * argv[]) {
 
 	// Set the kernel arguments
 
-	unsigned int sizeWindow = 9;
-	unsigned int max_disp = 65;
-	unsigned int halfWindowSize = floor(sizeWindow / 2);
-
 	err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &input_image_left);
 	err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &input_image_right);
 	err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &output_image);
-	err |= clSetKernelArg(kernel, 3, sizeof(unsigned int), &sizeWindow);
-	err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &halfWindowSize);
-	err |= clSetKernelArg(kernel, 5, sizeof(unsigned int), &max_disp);
+//	err |= clSetKernelArg(kernel, 3, sizeof(unsigned int), &sizeWindow);
+//	err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &halfWindowSize);
+//	err |= clSetKernelArg(kernel, 5, sizeof(unsigned int), &max_disp);
 
 	if(err != CL_SUCCESS){
 
@@ -354,8 +350,8 @@ int main (int argc, const char * argv[]) {
 
 	// Enqueue the kernel
 
-	size_t global_work_size[2] = { width - 8 - max_disp, height - 8 };
-	size_t global_work_offset[2] = { 4 + max_disp, 4 };
+	size_t global_work_size[2] = { width, height };
+	size_t global_work_offset[2] = { 0, 0 };
 	size_t local_work_size[2] = { 1, 1 };
 
 	err = clEnqueueNDRangeKernel(cmd_queue, kernel, 2, global_work_offset, global_work_size, local_work_size, 0, 0, 0);
@@ -369,7 +365,7 @@ int main (int argc, const char * argv[]) {
 	//Read the result
 
 	size_t origin[3] = {0, 0, 0};
-	size_t region[3] = {width - 8, height - 8, 1};
+	size_t region[3] = {width, height, 1};
 
 	err = clEnqueueReadImage(cmd_queue, output_image, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
 	if(err != CL_SUCCESS){
@@ -382,10 +378,7 @@ int main (int argc, const char * argv[]) {
 
 	// Encode the result in a output image
 
-	unsigned width2 = width - 8;
-	unsigned height2 = height - 8;
-
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_depth2.png", output, width2, height2);
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_cross_checking.png", output, width, height);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
 	clReleaseMemObject(input_image_left);
