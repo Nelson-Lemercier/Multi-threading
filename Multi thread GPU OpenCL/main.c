@@ -132,7 +132,7 @@ int main (int argc, const char * argv[]) {
     	"}\n"
     };
 
-    char* ZNCC_left = {
+    char* ZNCC_left_source = {
 
 		"kernel void ZNCC_left(read_only image2d_t image_left, read_only image2d_t image_right, write_only image2d_t output, unsigned int sizeWindow, unsigned int halfWindow, unsigned int max_disp){\n"
 			"const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n"
@@ -183,9 +183,87 @@ int main (int argc, const char * argv[]) {
 
     };
 
+    char* ZNCC_right_source = {
+
+   		"kernel void ZNCC_right(read_only image2d_t image_left, read_only image2d_t image_right, write_only image2d_t output, unsigned int sizeWindow, unsigned int halfWindow, unsigned int max_disp){\n"
+   			"const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n"
+   			"int2 coord = (int2)(get_global_id(0), get_global_id(1));\n"
+       		"uint4 values = (uint4)(0, 0, 0, 0);\n"
+       		"uint4 value_left, value_right;\n"
+   			"double maxSum = 0; unsigned int bestDisp = 0;\n"
+   			"for(int d = 0; d < max_disp; d++){\n"
+   				"unsigned int sum_left, sum_right = 0;\n"
+   				"for(int j = coord.y - halfWindow; j <= coord.y + halfWindow; j++){\n"
+   					"for(int i = coord.x - halfWindow; i <= coord.x + halfWindow; i++){\n"
+   						"int2 coordLeft = (int2)(i, j);\n"
+   						"int2 coordRight = (int2)(i - d, j);\n"
+   						"value_left = read_imageui(image_left, smp, coordLeft);\n"
+   						"value_right = read_imageui(image_right, smp, coordRight);\n"
+   						"sum_left += value_left.x;\n"
+   						"sum_right += value_right.x;\n"
+   					"}\n"
+   				"}\n"
+   				"double znccValue, upperSum, lowerSum_0, lowerSum_1, meanValueLeft, meanValueRight = 0;\n"
+   				"meanValueLeft = (double)sum_left / (sizeWindow * sizeWindow);\n"
+   				"meanValueRight = (double)sum_right / (sizeWindow * sizeWindow);\n"
+   				"for(int j = coord.y - halfWindow; j <= coord.y + halfWindow; j++){\n"
+   					"for(int i = coord.x - halfWindow; i <= coord.x + halfWindow; i++){\n"
+   						"int2 coordLeft = (int2)(i + d, j);\n"
+   						"int2 coordRight = (int2)(i, j);\n"
+   						"value_left = read_imageui(image_left, smp, coordLeft);\n"
+   						"value_right = read_imageui(image_right, smp, coordRight);\n"
+   						"upperSum += (value_left.x - meanValueLeft) * (value_right.x - meanValueRight);\n"
+   						"lowerSum_0 += (value_left.x - meanValueLeft) * (value_left.x - meanValueLeft);\n"
+   						"lowerSum_1 += (value_right.x - meanValueRight) * (value_right.x - meanValueRight);\n"
+   					"}\n"
+   				"}\n"
+
+   				"znccValue = upperSum / (sqrt(lowerSum_0) * sqrt(lowerSum_1));\n"
+   				"if(znccValue > maxSum){\n"
+   					"maxSum = znccValue;\n"
+   					"bestDisp = d;\n"
+   				"}\n"
+   			"}\n"
+       		"unsigned int depthValue = ceil(((double)255 / max_disp) * bestDisp);\n"
+       		"values.x = depthValue;\n"
+       		"values.y = depthValue;\n"
+       		"values.z = depthValue;\n"
+       		"values.w = 255;\n"
+       		"write_imageui(output, coord, values);\n"
+   		"}\n"
+
+       };
+
+    char* cross_checking_source = {
+
+	"kernel void cross_checking(read_only image2d_t depth_left, read_only image2d_t depth_right, write_only image2d_t cross_checking){\n"
+		"const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n"
+		"int2 coord = (int2)(get_global_id(0), get_global_id(1));\n"
+		"uint4 valueLeft, valueRight, valueOutput;\n"
+    	"valueLeft = read_imageui(depth_left, smp, coord);\n"
+		"valueRight = read_imageui(depth_right, smp, coord);\n"
+		"unsigned int dValue1, dValue2;\n"
+		"dValue1 = ceil(((double)64 / 255) * valueLeft.x);\n"
+		"dValue2 = ceil(((double)64 / 255) * valueRight.x);\n"
+    	"if( abs( dValue1 - dValue2 ) < 8 ){\n"
+			"valueOutput.x = valueLeft.x;\n"
+    		"valueOutput.y = valueLeft.x;\n"
+    		"valueOutput.z = valueLeft.x;\n"
+    		"valueOutput.w = 255;\n"
+		"}\n"
+		"else{\n"
+    		"valueOutput.x = 0;\n"
+    		"valueOutput.y = 0;\n"
+    		"valueOutput.z = 0;\n"
+    		"valueOutput.w = 255;\n"
+		"}\n"
+		"write_imageui(cross_checking, coord, valueOutput);\n"
+	"}\n"
+    };
+
     // Get the program and compile it
 
-	program = clCreateProgramWithSource(context, 1, (const char**)&ZNCC_left, NULL, &err);
+	program = clCreateProgramWithSource(context, 1, (const char**)&ZNCC_right_source, NULL, &err);
 
 	if(err != CL_SUCCESS){
 
@@ -209,7 +287,7 @@ int main (int argc, const char * argv[]) {
 
 	// Create the kernel
 
-	kernel = clCreateKernel(program, "ZNCC_left", &err);
+	kernel = clCreateKernel(program, "ZNCC_right", &err);
 
 	if(err != CL_SUCCESS){
 
@@ -277,7 +355,7 @@ int main (int argc, const char * argv[]) {
 	// Enqueue the kernel
 
 	size_t global_work_size[2] = { width - 8 - max_disp, height - 8 };
-	size_t global_work_offset[2] = { 4, 4 };
+	size_t global_work_offset[2] = { 4 + max_disp, 4 };
 	size_t local_work_size[2] = { 1, 1 };
 
 	err = clEnqueueNDRangeKernel(cmd_queue, kernel, 2, global_work_offset, global_work_size, local_work_size, 0, 0, 0);
@@ -307,7 +385,7 @@ int main (int argc, const char * argv[]) {
 	unsigned width2 = width - 8;
 	unsigned height2 = height - 8;
 
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_depth.png", output, width2, height2);
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_depth2.png", output, width2, height2);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
 	clReleaseMemObject(input_image_left);
