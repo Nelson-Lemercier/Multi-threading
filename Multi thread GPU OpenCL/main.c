@@ -7,6 +7,28 @@
 #include <CL/cl.h>
 #include <lodePNG.h>
 
+char* read_kernel(char* pathFile, char* source_str){
+
+		FILE *fp;
+		size_t program_size;
+
+		fp = fopen(pathFile, "r");
+		if (!fp) {
+			printf("Failed to load kernel\n");
+		}
+
+		fseek(fp, 0, SEEK_END);
+		program_size = ftell(fp);
+		rewind(fp);
+		source_str = (char*)malloc(program_size + 1);
+		source_str[program_size] = '\0';
+		fread(source_str, sizeof(char), program_size, fp);
+		fclose(fp);
+
+		return source_str;
+
+}
+
 int main (int argc, const char * argv[]) {
 
 	cl_int err;
@@ -134,12 +156,12 @@ int main (int argc, const char * argv[]) {
 
     char* ZNCC_left_source = {
 
-		"kernel void ZNCC_left(read_only image2d_t image_left, read_only image2d_t image_right, write_only image2d_t output, unsigned int sizeWindow, unsigned int halfWindow, unsigned int max_disp){\n"
+		"kernel void ZNCC_left(read_only image2d_t image_left, read_only image2d_t image_right, write_only image2d_t output, int sizeWindow, int halfWindow, unsigned int max_disp){\n"
 			"const sampler_t smp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;\n"
 			"int2 coord = (int2)(get_global_id(0), get_global_id(1));\n"
     		"uint4 values = (uint4)(0, 0, 0, 0);\n"
     		"uint4 value_left, value_right;\n"
-			"double maxSum = 0; unsigned int bestDisp = 0;\n"
+			"double znccValue, maxSum = 0; unsigned int bestDisp = 0;\n"
 			"for(int d = 0; d < max_disp; d++){\n"
 				"unsigned int sum_left, sum_right = 0;\n"
 				"for(int j = coord.y - halfWindow; j <= coord.y + halfWindow; j++){\n"
@@ -152,9 +174,10 @@ int main (int argc, const char * argv[]) {
 						"sum_right += value_right.x;\n"
 					"}\n"
 				"}\n"
-				"double znccValue, upperSum, lowerSum_0, lowerSum_1, meanValueLeft, meanValueRight = 0;\n"
+				"double meanValueLeft, meanValueRight = 0;\n"
 				"meanValueLeft = (double)sum_left / (sizeWindow * sizeWindow);\n"
 				"meanValueRight = (double)sum_right / (sizeWindow * sizeWindow);\n"
+    			"double upperSum, lowerSum_0, lowerSum_1 = 0;\n"
 				"for(int j = coord.y - halfWindow; j <= coord.y + halfWindow; j++){\n"
 					"for(int i = coord.x - halfWindow; i <= coord.x + halfWindow; i++){\n"
 						"int2 coordLeft = (int2)(i + d, j);\n"
@@ -173,7 +196,7 @@ int main (int argc, const char * argv[]) {
 					"bestDisp = d;\n"
 				"}\n"
 			"}\n"
-    		"unsigned int depthValue = ceil(((double)255 / max_disp) * bestDisp);\n"
+    		"int depthValue = ceil(((double)255 / max_disp) * bestDisp);\n"
     		"values.x = depthValue;\n"
     		"values.y = depthValue;\n"
     		"values.z = depthValue;\n"
@@ -261,9 +284,13 @@ int main (int argc, const char * argv[]) {
 	"}\n"
     };
 
+    char* src = NULL;
+
+    src = read_kernel("C:/Users/Nelson/Documents/Etudes/Multi threading/Code/test_OpenCL/Kernels/kernel.cl", src);
+
     // Get the program and compile it
 
-	program = clCreateProgramWithSource(context, 1, (const char**)&cross_checking_source, NULL, &err);
+	program = clCreateProgramWithSource(context, 1, (const char**)&src, NULL, &err);
 
 	if(err != CL_SUCCESS){
 
@@ -287,7 +314,7 @@ int main (int argc, const char * argv[]) {
 
 	// Create the kernel
 
-	kernel = clCreateKernel(program, "cross_checking", &err);
+	kernel = clCreateKernel(program, "ZNCC_left", &err);
 
 	if(err != CL_SUCCESS){
 
@@ -303,8 +330,8 @@ int main (int argc, const char * argv[]) {
 	unsigned char* rightImage;
 	unsigned error;
 
-	const char* leftImagePath = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_depth.png";
-	const char* rightImagePath = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_depth2.png";
+	const char* leftImagePath = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/left.png";
+	const char* rightImagePath = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/right.png";
 
 	error = lodepng_decode32_file(&leftImage, &width, &height, leftImagePath);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
@@ -335,12 +362,16 @@ int main (int argc, const char * argv[]) {
 
 	// Set the kernel arguments
 
+	int sizeWindow = 9;
+	int halfWindowSize = 4;
+	unsigned max_disp = 65;
+
 	err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &input_image_left);
 	err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &input_image_right);
 	err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &output_image);
-//	err |= clSetKernelArg(kernel, 3, sizeof(unsigned int), &sizeWindow);
-//	err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &halfWindowSize);
-//	err |= clSetKernelArg(kernel, 5, sizeof(unsigned int), &max_disp);
+	err |= clSetKernelArg(kernel, 3, sizeof(unsigned int), &sizeWindow);
+	err |= clSetKernelArg(kernel, 4, sizeof(unsigned int), &halfWindowSize);
+	err |= clSetKernelArg(kernel, 5, sizeof(unsigned int), &max_disp);
 
 	if(err != CL_SUCCESS){
 
@@ -350,8 +381,8 @@ int main (int argc, const char * argv[]) {
 
 	// Enqueue the kernel
 
-	size_t global_work_size[2] = { width, height };
-	size_t global_work_offset[2] = { 0, 0 };
+	size_t global_work_size[2] = { width - 8 - max_disp, height - 8  };
+	size_t global_work_offset[2] = { 4, 4 };
 	size_t local_work_size[2] = { 1, 1 };
 
 	err = clEnqueueNDRangeKernel(cmd_queue, kernel, 2, global_work_offset, global_work_size, local_work_size, 0, 0, 0);
@@ -365,7 +396,7 @@ int main (int argc, const char * argv[]) {
 	//Read the result
 
 	size_t origin[3] = {0, 0, 0};
-	size_t region[3] = {width, height, 1};
+	size_t region[3] = {width - 8, height - 8, 1};
 
 	err = clEnqueueReadImage(cmd_queue, output_image, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
 	if(err != CL_SUCCESS){
@@ -378,7 +409,10 @@ int main (int argc, const char * argv[]) {
 
 	// Encode the result in a output image
 
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_cross_checking.png", output, width, height);
+	unsigned width2 = width - 8;
+	unsigned height2 = height - 8;
+
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_depth.png", output, width2, height2);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
 	clReleaseMemObject(input_image_left);

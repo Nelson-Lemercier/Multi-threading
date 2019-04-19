@@ -47,7 +47,7 @@ Apply an occlusion filling algorithm. First, we define a window size of 3. If no
 
 - **GPU**:  NVIDIA GeForce MX150
 
-# Specification CPU
+# Specification GPU
 
 - local_mem_size: 49152
 - max_compute_units: 3
@@ -93,7 +93,7 @@ Average on 5 trials: 42.154733 seconds
 
 - [x] Transform grey
 - [x] Resize
-- [x] ZNCC left **Return a similar image but a bit too dark**
+- [x] ZNCC left
 - [x] ZNCC right **Return a similar image but a too bright**
 - [x] cross checking
 - [ ] occlusion filling
@@ -103,7 +103,7 @@ ________________________________________________________________________________
 
 - [ ] Comments and documentation
 - [ ] Refactoring
-- [ ] Implement a function to read kernels' source code from files
+- [x] Implement a function to read kernels' source code from files
 
 ________________________________________________________________________________________
 
