@@ -286,7 +286,7 @@ int main (int argc, const char * argv[]) {
 
     char* src = NULL;
 
-    src = read_kernel("C:/Users/Nelson/Documents/Etudes/Multi threading/Code/test_OpenCL/Kernels/kernel.cl", src);
+    src = read_kernel("C:/Users/Nelson/Documents/Etudes/Multi threading/Code/test_OpenCL/Kernels/znccRightSource.cl", src);
 
     // Get the program and compile it
 
@@ -314,7 +314,7 @@ int main (int argc, const char * argv[]) {
 
 	// Create the kernel
 
-	kernel = clCreateKernel(program, "ZNCC_left", &err);
+	kernel = clCreateKernel(program, "ZNCC_right", &err);
 
 	if(err != CL_SUCCESS){
 
@@ -382,7 +382,7 @@ int main (int argc, const char * argv[]) {
 	// Enqueue the kernel
 
 	size_t global_work_size[2] = { width - 8 - max_disp, height - 8  };
-	size_t global_work_offset[2] = { 4, 4 };
+	size_t global_work_offset[2] = { 4 + max_disp, 4 };
 	size_t local_work_size[2] = { 1, 1 };
 
 	err = clEnqueueNDRangeKernel(cmd_queue, kernel, 2, global_work_offset, global_work_size, local_work_size, 0, 0, 0);
@@ -412,7 +412,7 @@ int main (int argc, const char * argv[]) {
 	unsigned width2 = width - 8;
 	unsigned height2 = height - 8;
 
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test_depth.png", output, width2, height2);
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/test2_depth.png", output, width2, height2);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
 	clReleaseMemObject(input_image_left);

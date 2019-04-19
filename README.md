@@ -94,7 +94,7 @@ Average on 5 trials: 42.154733 seconds
 - [x] Transform grey
 - [x] Resize
 - [x] ZNCC left
-- [x] ZNCC right **Return a similar image but a too bright**
+- [x] ZNCC right
 - [x] cross checking
 - [ ] occlusion filling
 ________________________________________________________________________________________
