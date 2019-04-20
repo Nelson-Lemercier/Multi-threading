@@ -40,6 +40,8 @@ Apply an occlusion filling algorithm. First, we define a window size of 3. If no
 
 ```kernel void cross_checking(read_only image2d_t depth_left, read_only image2d_t depth_right, write_only image2d_t cross_checking)```
 
+```kernel void occlusion(read_only image2d_t input, write_only image2d_t output, unsigned width, unsigned height)```
+
 # Configuration
 
 - **CPU**:  Intel(R) Core(TM) i5-8250U CPU @1.60GHz 1.80GHz 
@@ -96,7 +98,7 @@ Average on 5 trials: 42.154733 seconds
 - [x] ZNCC left
 - [x] ZNCC right
 - [x] cross checking
-- [ ] occlusion filling
+- [x] occlusion filling
 ________________________________________________________________________________________
 
 **Secondary tasks**
