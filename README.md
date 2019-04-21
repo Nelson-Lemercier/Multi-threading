@@ -103,7 +103,7 @@ ________________________________________________________________________________
 
 **Secondary tasks**
 
-- [ ] Comments and documentation
+- [x] Comments and documentation
 - [ ] Refactoring
 - [x] Implement a function to read kernels' source code from files
 
@@ -111,5 +111,5 @@ ________________________________________________________________________________
 
 **General tasks**
 
-- [ ] Implement the algorithm using OpenCL and a GPU
+- [x] Implement the algorithm using OpenCL and a GPU
 - [ ] Start the optimization of the OpenCL kernels required in the next phase
