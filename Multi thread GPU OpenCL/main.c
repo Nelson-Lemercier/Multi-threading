@@ -6,6 +6,7 @@
 #include <math.h>
 #include <CL/cl.h>
 #include <lodePNG.h>
+#include <Windows.h>
 
 char* read_kernel(char* pathFile, char* source_str){
 
@@ -30,6 +31,17 @@ char* read_kernel(char* pathFile, char* source_str){
 }
 
 int main (int argc, const char * argv[]) {
+
+	LARGE_INTEGER clockFrequency;
+	QueryPerformanceFrequency(&clockFrequency);
+
+	LARGE_INTEGER startTime;
+	LARGE_INTEGER endTime;
+
+	LARGE_INTEGER startGPU;
+	LARGE_INTEGER endGPU;
+
+	QueryPerformanceCounter(&startTime);
 
 	/********************************************/
 	/*                                          */
@@ -244,6 +256,8 @@ int main (int argc, const char * argv[]) {
 
 	unsigned char* crossCheckedImage = malloc(sizeof(unsigned char) * widthResize * heightResize * 4);
 	unsigned char* occlusionImage = malloc(sizeof(unsigned char) * widthResize * heightResize * 4);
+
+	QueryPerformanceCounter(&startGPU);
 
 	/********************************************/
 	/*                                          */
@@ -612,6 +626,7 @@ int main (int argc, const char * argv[]) {
 
 	clFinish(cmd_queue);
 
+	QueryPerformanceCounter(&endGPU);
 
 	/********************************************/
 	/*                                          */
@@ -678,6 +693,19 @@ int main (int argc, const char * argv[]) {
 	clReleaseProgram(program);
 	clReleaseCommandQueue(cmd_queue);
 	clReleaseContext(context);
+
+	QueryPerformanceCounter(&endTime);
+
+	LARGE_INTEGER delta;
+	LARGE_INTEGER deltaGPU;
+
+	delta.QuadPart = endTime.QuadPart - startTime.QuadPart;
+	float deltaSeconds = (float)delta.QuadPart / clockFrequency.QuadPart;
+
+	deltaGPU.QuadPart = endGPU.QuadPart - startGPU.QuadPart;
+	float deltaGPUSeconds = (float)deltaGPU.QuadPart / clockFrequency.QuadPart;
+
+	printf("Execution time:\t%f s\nGPU execution time:\t%f s\n", deltaSeconds, deltaGPUSeconds);
 
     return 0;
 

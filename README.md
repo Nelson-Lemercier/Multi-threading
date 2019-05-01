@@ -91,14 +91,10 @@ Average on 5 trials: 42.154733 seconds
 
 ## TODO
 
-**Kernels to modify**
+**General tasks**
 
-- [x] Transform grey
-- [x] Resize
-- [x] ZNCC left
-- [x] ZNCC right
-- [x] cross checking
-- [x] occlusion filling
+- [x] Implement the algorithm using OpenCL and a GPU
+- [ ] Start the optimization of the OpenCL kernels required in the next phase
 ________________________________________________________________________________________
 
 **Secondary tasks**
@@ -107,9 +103,6 @@ ________________________________________________________________________________
 - [ ] Refactoring
 - [x] Implement a function to read kernels' source code from files
 
-________________________________________________________________________________________
+## Time of execution
 
-**General tasks**
-
-- [x] Implement the algorithm using OpenCL and a GPU
-- [ ] Start the optimization of the OpenCL kernels required in the next phase
+Average on 5 trials: 35.6964294 seconds
