@@ -31,6 +31,12 @@ char* read_kernel(char* pathFile, char* source_str){
 
 int main (int argc, const char * argv[]) {
 
+	/********************************************/
+	/*                                          */
+	/*            SELECT THE GPU                */
+	/*                                          */
+	/********************************************/
+
 	cl_int err;
 	cl_uint numPlatforms;
 	cl_device_id device;
@@ -44,10 +50,6 @@ int main (int argc, const char * argv[]) {
 	cl_program program;
 	cl_kernel kernel[6];
 	cl_command_queue cmd_queue;
-
-
-	//*******************************************************************************************************
-	// Get a NVIDIA GPU
 
     err = clGetPlatformIDs(0, NULL, &numPlatforms);
 
@@ -95,9 +97,11 @@ int main (int argc, const char * argv[]) {
 
     }
 
-    //*************************************************************************************************************
-
-    // Creating the context
+	/********************************************/
+	/*                                          */
+	/* CREATE THE CONTEXT AND THE COMMAND QUEUE */
+	/*                                          */
+	/********************************************/
 
     context = clCreateContext(NULL, 1, &GPU, NULL, NULL, &err);
 
@@ -107,8 +111,6 @@ int main (int argc, const char * argv[]) {
 
     }
 
-    // Creating the command queue
-
     cmd_queue = clCreateCommandQueue(context, GPU, 0, &err);
 
     if(err != CL_SUCCESS){
@@ -117,13 +119,15 @@ int main (int argc, const char * argv[]) {
 
     }
 
-    // Get the source code
+	/********************************************/
+	/*                                          */
+	/*   GET THE SOURCE CODE AND COMPILE IT     */
+	/*                                          */
+	/********************************************/
 
     char* sourceCode = NULL;
 
     sourceCode = read_kernel("C:/Users/Nelson/Documents/Etudes/Multi threading/Code/test_OpenCL/Kernels/kernels.cl", sourceCode);
-
-    // Get the program and compile it
 
 	program = clCreateProgramWithSource(context, 1, (const char**)&sourceCode, NULL, &err);
 
@@ -147,7 +151,13 @@ int main (int argc, const char * argv[]) {
 
 	printf("log: %s\n", log);
 
-	// Create the kernels
+
+	/********************************************/
+	/*                                          */
+	/*            CREATE THE KERNELS            */
+	/*                                          */
+	/********************************************/
+
 
 	kernel[0] = clCreateKernel(program, "transform_grey", &err);
 
@@ -197,53 +207,91 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	//******************************************************************************************************
-	// Transform grey 0
-
-	// Read the input images
+	/********************************************/
+	/*                                          */
+	/*     CREATE OUTPUT IMAGES POINTERS        */
+	/*                                          */
+	/********************************************/
 
 	unsigned width;
 	unsigned height;
-	unsigned char* image;
+	unsigned char* originalImage0;
+	unsigned char* originalImage1;
 	unsigned error;
 
 	const char* path = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im0.png";
 
-	error = lodepng_decode32_file(&image, &width, &height, path);
+	error = lodepng_decode32_file(&originalImage0, &width, &height, path);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	unsigned char* output = malloc(sizeof(unsigned char) * width * height * 4);
+	unsigned char* greyImage0 = malloc(sizeof(unsigned char) * width * height * 4);
 
-	// Create the input and output buffers
+	path = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im1.png";
 
-	cl_mem originalImage0, greyImage0;
+	error = lodepng_decode32_file(&originalImage1, &width, &height, path);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	unsigned char* greyImage1 = malloc(sizeof(unsigned char) * width * height * 4);
+
+	unsigned widthResize = width / 4;
+	unsigned heightResize = height /4;
+
+	unsigned char* resizeImage0 = malloc(sizeof(unsigned char) * widthResize * heightResize * 4);
+	unsigned char* resizeImage1 = malloc(sizeof(unsigned char) * widthResize * heightResize * 4);
+
+	unsigned char* znccImage0 = malloc(sizeof(unsigned char) * widthResize * heightResize * 4);
+	unsigned char* znccImage1 = malloc(sizeof(unsigned char) * widthResize * heightResize * 4);
+
+	unsigned char* crossCheckedImage = malloc(sizeof(unsigned char) * widthResize * heightResize * 4);
+	unsigned char* occlusionImage = malloc(sizeof(unsigned char) * widthResize * heightResize * 4);
+
+	/********************************************/
+	/*                                          */
+	/*        CREATE THE IMAGE OBJECTS          */
+	/*                                          */
+	/********************************************/
+
+	cl_mem original0, grey0, original1, grey1, resize0, resize1, zncc0 , zncc1, crossChecked, occlusion;
 
 	cl_image_format format;
 
 	format.image_channel_order = CL_RGBA;
 	format.image_channel_data_type = CL_UNSIGNED_INT8;
 
-	originalImage0 = clCreateImage2D(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &format, (size_t)width, (size_t)height, 0, (void*)image, &err);
-	greyImage0 = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)width, (size_t)height, 0, NULL, &err);
+	original0 = clCreateImage2D(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &format, (size_t)width, (size_t)height, 0, (void*)originalImage0, &err);
+	original1 = clCreateImage2D(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &format, (size_t)width, (size_t)height, 0, (void*)originalImage1, &err);
+	grey0 = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)width, (size_t)height, 0, NULL, &err);
+	grey1 = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)width, (size_t)height, 0, NULL, &err);
+	resize0 = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)widthResize, (size_t)heightResize, 0, NULL, &err);
+	resize1 = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)widthResize, (size_t)heightResize, 0, NULL, &err);
+	zncc0 = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)widthResize, (size_t)heightResize, 0, NULL, &err);
+	zncc1 = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)widthResize, (size_t)heightResize, 0, NULL, &err);
+	crossChecked = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)widthResize, (size_t)heightResize, 0, NULL, &err);
+	occlusion = clCreateImage2D(context, CL_MEM_WRITE_ONLY, &format, (size_t)widthResize, (size_t)heightResize, 0, NULL, &err);
 
 	if(err != CL_SUCCESS){
 
-		printf("\nUnable to create the images objects: %d\n", err);
+		printf("\nError clCreateImage2D: %d\n", err); // Effective only on the last image, have to find a fix
 
 	}
 
-	// Set the kernel arguments
+	/********************************************/
+	/*                                          */
+	/*            EXECUTE THE KERNELS           */
+	/*                                          */
+	/********************************************/
 
-	err = clSetKernelArg(kernel[0], 0, sizeof(cl_mem), &originalImage0);
-	err |= clSetKernelArg(kernel[0], 1, sizeof(cl_mem), &greyImage0);
+	//******************************************************************************************************
+	// Transform grey 0
+
+	err = clSetKernelArg(kernel[0], 0, sizeof(cl_mem), &original0);
+	err |= clSetKernelArg(kernel[0], 1, sizeof(cl_mem), &grey0);
 
 	if(err != CL_SUCCESS){
 
 		printf("\nError clSetKernelArg: %d\n", err);
 
 	}
-
-	// Enqueue the kernel
 
 	size_t global_work_size[2] = { width, height };
 	size_t global_work_offset[2] = { 0, 0 };
@@ -257,62 +305,18 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	//Read the result
-
-	size_t origin[3] = {0, 0, 0};
-	size_t region[3] = {width, height, 1};
-
-	err = clEnqueueReadImage(cmd_queue, greyImage0, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
-	if(err != CL_SUCCESS){
-
-		printf("\nError clEnqueueReadImage: %d\n", err);
-
-	}
-
-	clFinish(cmd_queue);
-
-	// Encode the result in a output image
-
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey0.png", output, width, height);
-	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
-
-	free(output);
-
 	//******************************************************************************************************
-	// transform grey 1
+	// Transform grey 1
 
-	path = "C:/Users/Nelson/Documents/Etudes/Multi threading/Images/im1.png";
+	err = clSetKernelArg(kernel[0], 0, sizeof(cl_mem), &original1);
+	err |= clSetKernelArg(kernel[0], 1, sizeof(cl_mem), &grey1);
 
-	error = lodepng_decode32_file(&image, &width, &height, path);
-	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
-
-	output = malloc(sizeof(unsigned char) * width * height * 4);
-
-	// Create the input and output buffers
-
-	cl_mem originalImage1, greyImage1;
-
-	originalImage1 = clCreateImage2D(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &format, (size_t)width, (size_t)height, 0, (void*)image, &err);
-	greyImage1 = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)width, (size_t)height, 0, NULL, &err);
-
-	if(err != CL_SUCCESS){
-
-		printf("\nUnable to create the images objects: %d\n", err);
-
-	}
-
-	// Set the kernel arguments
-
-	err = clSetKernelArg(kernel[0], 0, sizeof(cl_mem), &originalImage1);
-	err |= clSetKernelArg(kernel[0], 1, sizeof(cl_mem), &greyImage1);
 
 	if(err != CL_SUCCESS){
 
 		printf("\nError clSetKernelArg: %d\n", err);
 
 	}
-
-	// Enqueue the kernel
 
 	global_work_size[0] = width; global_work_size[1] = height;
 	global_work_offset[0] = 0; global_work_offset[1] = 0;
@@ -326,50 +330,12 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	//Read the result
-
-	origin[0] = origin[1] = origin[2] = 0;
-	region[0] = width; region[1] = height; region[2] = 1;
-
-	err = clEnqueueReadImage(cmd_queue, greyImage1, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
-	if(err != CL_SUCCESS){
-
-		printf("\nError clEnqueueReadImage: %d\n", err);
-
-	}
-
 	clFinish(cmd_queue);
-
-	// Encode the result in a output image
-
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey1.png", output, width, height);
-	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
-
-	free(output);
 
 	//******************************************************************************************************
 	// Resize 0
 
-	unsigned widthResize = width / 4;
-	unsigned heightResize = height /4;
-
-	output = malloc(sizeof(unsigned char) * widthResize * heightResize * 4);
-
-	// Create the input and output buffers
-
-	cl_mem resize0;
-
-	resize0 = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)widthResize, (size_t)heightResize, 0, NULL, &err);
-
-	if(err != CL_SUCCESS){
-
-		printf("\nUnable to create the images objects: %d\n", err);
-
-	}
-
-	// Set the kernel arguments
-
-	err = clSetKernelArg(kernel[1], 0, sizeof(cl_mem), &greyImage0);
+	err = clSetKernelArg(kernel[1], 0, sizeof(cl_mem), &grey0);
 	err |= clSetKernelArg(kernel[1], 1, sizeof(cl_mem), &resize0);
 
 	if(err != CL_SUCCESS){
@@ -378,8 +344,6 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	// Enqueue the kernel
-
 	global_work_size[0] = width; global_work_size[1] = height;
 	global_work_offset[0] = 0; global_work_offset[1] = 0;
 	local_work_size[0] = 1; local_work_size[1] = 1;
@@ -392,47 +356,10 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	//Read the result
-
-	origin[0] = origin[1] = origin[2] = 0;
-	region[0] = widthResize; region[1] = heightResize; region[2] = 1;
-
-	err = clEnqueueReadImage(cmd_queue, resize0, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
-	if(err != CL_SUCCESS){
-
-		printf("\nError clEnqueueReadImage: %d\n", err);
-
-	}
-
-	clFinish(cmd_queue);
-
-	// Encode the result in a output image
-
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/resize0.png", output, widthResize, heightResize);
-	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
-
-	free(output);
-
 	//******************************************************************************************************
-	// Resize1
+	// Resize 1
 
-	output = malloc(sizeof(unsigned char) * widthResize * heightResize * 4);
-
-	// Create the input and output buffers
-
-	cl_mem resize1;
-
-	resize1 = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)widthResize, (size_t)heightResize, 0, NULL, &err);
-
-	if(err != CL_SUCCESS){
-
-		printf("\nUnable to create the images objects: %d\n", err);
-
-	}
-
-	// Set the kernel arguments
-
-	err = clSetKernelArg(kernel[1], 0, sizeof(cl_mem), &greyImage1);
+	err = clSetKernelArg(kernel[1], 0, sizeof(cl_mem), &grey1);
 	err |= clSetKernelArg(kernel[1], 1, sizeof(cl_mem), &resize1);
 
 	if(err != CL_SUCCESS){
@@ -441,8 +368,6 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	// Enqueue the kernel
-
 	global_work_size[0] = width; global_work_size[1] = height;
 	global_work_offset[0] = 0; global_work_offset[1] = 0;
 	local_work_size[0] = 1; local_work_size[1] = 1;
@@ -455,48 +380,10 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	//Read the result
-
-	origin[0] = origin[1] = origin[2] = 0;
-	region[0] = widthResize; region[1] = heightResize; region[2] = 1;
-
-	err = clEnqueueReadImage(cmd_queue, resize1, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
-	if(err != CL_SUCCESS){
-
-		printf("\nError clEnqueueReadImage: %d\n", err);
-
-	}
-
 	clFinish(cmd_queue);
 
-	// Encode the result in a output image
-
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/resize1.png", output, widthResize, heightResize);
-	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
-
-	free(output);
-
 	//******************************************************************************************************
-	// ZNCC0
-
-	width = widthResize;
-	height = heightResize;
-
-	output = malloc(sizeof(unsigned char) * width * height * 4);
-
-	// Create the input and output buffers
-
-	cl_mem zncc0;
-
-	zncc0 = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)width, (size_t)height, 0, NULL, &err);
-
-	if(err != CL_SUCCESS){
-
-		printf("\nUnable to create the images objects: %d\n", err);
-
-	}
-
-	// Set the kernel arguments
+	// ZNCC 0
 
 	int windowSize = 9;
 	int halfWindow = floor(windowSize / 3);
@@ -515,9 +402,7 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	// Enqueue the kernel
-
-	global_work_size[0] = width - 8 - maxDisp; global_work_size[1] = height - 8;
+	global_work_size[0] = widthResize - 8 - maxDisp; global_work_size[1] = heightResize - 8;
 	global_work_offset[0] = 4; global_work_offset[1] = 4;
 	local_work_size[0] = 1; local_work_size[1] = 1;
 
@@ -529,45 +414,8 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	//Read the result
-
-	origin[0] = origin[1] = origin[2] = 0;
-	region[0] = width - 8; region[1] = height - 8; region[2] = 1;
-
-	err = clEnqueueReadImage(cmd_queue, zncc0, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
-	if(err != CL_SUCCESS){
-
-		printf("\nError clEnqueueReadImage: %d\n", err);
-
-	}
-
-	clFinish(cmd_queue);
-
-	// Encode the result in a output image
-
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/zncc0.png", output, width - 8, height - 8);
-	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
-
-	free(output);
-
 	//******************************************************************************************************
-	// ZNCC1
-
-	output = malloc(sizeof(unsigned char) * width * height * 4);
-
-	// Create the input and output buffers
-
-	cl_mem zncc1;
-
-	zncc1 = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)width, (size_t)height, 0, NULL, &err);
-
-	if(err != CL_SUCCESS){
-
-		printf("\nUnable to create the images objects: %d\n", err);
-
-	}
-
-	// Set the kernel arguments
+	// ZNCC 1
 
 	err = clSetKernelArg(kernel[3], 0, sizeof(cl_mem), &resize0);
 	err |= clSetKernelArg(kernel[3], 1, sizeof(cl_mem), &resize1);
@@ -582,9 +430,7 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	// Enqueue the kernel
-
-	global_work_size[0] = width - 8 - maxDisp; global_work_size[1] = height - 8;
+	global_work_size[0] = widthResize - 8 - maxDisp; global_work_size[1] = heightResize - 8;
 	global_work_offset[0] = 4 + maxDisp; global_work_offset[1] = 4;
 	local_work_size[0] = 1; local_work_size[1] = 1;
 
@@ -596,45 +442,10 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	//Read the result
-
-	origin[0] = origin[1] = origin[2] = 0;
-	region[0] = width - 8; region[1] = height - 8; region[2] = 1;
-
-	err = clEnqueueReadImage(cmd_queue, zncc1, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
-	if(err != CL_SUCCESS){
-
-		printf("\nError clEnqueueReadImage: %d\n", err);
-
-	}
-
 	clFinish(cmd_queue);
 
-	// Encode the result in a output image
-
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/zncc1.png", output, width - 8, height - 8);
-	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
-
-	free(output);
-
 	//******************************************************************************************************
-	//Cross checking
-
-	output = malloc(sizeof(unsigned char) * width * height * 4);
-
-	// Create the input and output buffers
-
-	cl_mem crossChecked;
-
-	crossChecked = clCreateImage2D(context, CL_MEM_READ_WRITE, &format, (size_t)width, (size_t)height, 0, NULL, &err);
-
-	if(err != CL_SUCCESS){
-
-		printf("\nUnable to create the images objects: %d\n", err);
-
-	}
-
-	// Set the kernel arguments
+	// Cross checking
 
 	err = clSetKernelArg(kernel[4], 0, sizeof(cl_mem), &zncc0);
 	err |= clSetKernelArg(kernel[4], 1, sizeof(cl_mem), &zncc1);
@@ -646,9 +457,7 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	// Enqueue the kernel
-
-	global_work_size[0] = width; global_work_size[1] = height;
+	global_work_size[0] = widthResize; global_work_size[1] = heightResize;
 	global_work_offset[0] = 0; global_work_offset[1] = 0;
 	local_work_size[0] = 1; local_work_size[1] = 1;
 
@@ -660,45 +469,10 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	//Read the result
-
-	origin[0] = origin[1] = origin[2] = 0;
-	region[0] = width; region[1] = height; region[2] = 1;
-
-	err = clEnqueueReadImage(cmd_queue, crossChecked, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
-	if(err != CL_SUCCESS){
-
-		printf("\nError clEnqueueReadImage: %d\n", err);
-
-	}
-
 	clFinish(cmd_queue);
-
-	// Encode the result in a output image
-
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/crossChecked.png", output, width, height);
-	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
-
-	free(output);
 
 	//******************************************************************************************************
 	// Occlusion
-
-	output = malloc(sizeof(unsigned char) * width * height * 4);
-
-	// Create the input and output buffers
-
-	cl_mem occlusion;
-
-	occlusion = clCreateImage2D(context, CL_MEM_WRITE_ONLY, &format, (size_t)width, (size_t)height, 0, NULL, &err);
-
-	if(err != CL_SUCCESS){
-
-		printf("\nUnable to create the images objects: %d\n", err);
-
-	}
-
-	// Set the kernel arguments
 
 	err = clSetKernelArg(kernel[5], 0, sizeof(cl_mem), &crossChecked);
 	err |= clSetKernelArg(kernel[5], 1, sizeof(cl_mem), &occlusion);
@@ -711,9 +485,7 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	// Enqueue the kernel
-
-	global_work_size[0] = width - 1; global_work_size[1] = height - 1;
+	global_work_size[0] = widthResize - 1; global_work_size[1] = heightResize - 1;
 	global_work_offset[0] = 1; global_work_offset[1] = 1;
 	local_work_size[0] = 1; local_work_size[1] = 1;
 
@@ -725,12 +497,113 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	//Read the result
+	clFinish(cmd_queue);
+
+
+	/********************************************/
+	/*                                          */
+	/*         RETRIEVE THE RESULTS             */
+	/*                                          */
+	/********************************************/
+
+	//******************************************************************************************************
+	// Transform grey 0
+
+	size_t origin[3] = {0, 0, 0};
+	size_t region[3] = {width, height, 1};
+
+	err = clEnqueueReadImage(cmd_queue, grey0, CL_TRUE, origin, region, 0, 0, greyImage0, 0, 0, 0);
+	if(err != CL_SUCCESS){
+
+		printf("\nError clEnqueueReadImage: %d\n", err);
+
+	}
+
+	//******************************************************************************************************
+	// transform grey 1
 
 	origin[0] = origin[1] = origin[2] = 0;
 	region[0] = width; region[1] = height; region[2] = 1;
 
-	err = clEnqueueReadImage(cmd_queue, occlusion, CL_TRUE, origin, region, 0, 0, output, 0, 0, 0);
+	err = clEnqueueReadImage(cmd_queue, grey1, CL_TRUE, origin, region, 0, 0, greyImage1, 0, 0, 0);
+	if(err != CL_SUCCESS){
+
+		printf("\nError clEnqueueReadImage: %d\n", err);
+
+	}
+
+	//******************************************************************************************************
+	// Resize 0
+
+	origin[0] = origin[1] = origin[2] = 0;
+	region[0] = widthResize; region[1] = heightResize; region[2] = 1;
+
+	err = clEnqueueReadImage(cmd_queue, resize0, CL_TRUE, origin, region, 0, 0, resizeImage0, 0, 0, 0);
+	if(err != CL_SUCCESS){
+
+		printf("\nError clEnqueueReadImage: %d\n", err);
+
+	}
+
+	//******************************************************************************************************
+	// Resize1
+
+	origin[0] = origin[1] = origin[2] = 0;
+	region[0] = widthResize; region[1] = heightResize; region[2] = 1;
+
+	err = clEnqueueReadImage(cmd_queue, resize1, CL_TRUE, origin, region, 0, 0, resizeImage1, 0, 0, 0);
+	if(err != CL_SUCCESS){
+
+		printf("\nError clEnqueueReadImage: %d\n", err);
+
+	}
+
+	//******************************************************************************************************
+	// ZNCC0
+
+	origin[0] = origin[1] = origin[2] = 0;
+	region[0] = widthResize - 8; region[1] = heightResize - 8; region[2] = 1;
+
+	err = clEnqueueReadImage(cmd_queue, zncc0, CL_TRUE, origin, region, 0, 0, znccImage0, 0, 0, 0);
+	if(err != CL_SUCCESS){
+
+		printf("\nError clEnqueueReadImage: %d\n", err);
+
+	}
+
+	//******************************************************************************************************
+	// ZNCC1
+
+	origin[0] = origin[1] = origin[2] = 0;
+	region[0] = widthResize - 8; region[1] = heightResize - 8; region[2] = 1;
+
+	err = clEnqueueReadImage(cmd_queue, zncc1, CL_TRUE, origin, region, 0, 0, znccImage1, 0, 0, 0);
+	if(err != CL_SUCCESS){
+
+		printf("\nError clEnqueueReadImage: %d\n", err);
+
+	}
+
+	//******************************************************************************************************
+	//Cross checking
+
+	origin[0] = origin[1] = origin[2] = 0;
+	region[0] = widthResize; region[1] = heightResize; region[2] = 1;
+
+	err = clEnqueueReadImage(cmd_queue, crossChecked, CL_TRUE, origin, region, 0, 0, crossCheckedImage, 0, 0, 0);
+	if(err != CL_SUCCESS){
+
+		printf("\nError clEnqueueReadImage: %d\n", err);
+
+	}
+
+	//******************************************************************************************************
+	// Occlusion
+
+	origin[0] = origin[1] = origin[2] = 0;
+	region[0] = widthResize; region[1] = heightResize; region[2] = 1;
+
+	err = clEnqueueReadImage(cmd_queue, occlusion, CL_TRUE, origin, region, 0, 0, occlusionImage, 0, 0, 0);
 	if(err != CL_SUCCESS){
 
 		printf("\nError clEnqueueReadImage: %d\n", err);
@@ -739,19 +612,57 @@ int main (int argc, const char * argv[]) {
 
 	clFinish(cmd_queue);
 
-	// Encode the result in a output image
 
-	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/occlusion.png", output, width, height);
+	/********************************************/
+	/*                                          */
+	/*            ENCODE THE RESULTS            */
+	/*                                          */
+	/********************************************/
+
+
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey0.png", greyImage0, width, height);
 	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	free(output);
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/grey1.png", greyImage1, width, height);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	//******************************************************************************************************
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/resize0.png", resizeImage0, widthResize, heightResize);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-	clReleaseMemObject(originalImage0);
-	clReleaseMemObject(originalImage1);
-	clReleaseMemObject(greyImage0);
-	clReleaseMemObject(greyImage1);
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/resize1.png", resizeImage1, widthResize, heightResize);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/zncc0.png", znccImage0, widthResize - 8, heightResize - 8);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/zncc1.png", znccImage1, widthResize - 8, heightResize - 8);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/crossChecked.png", crossCheckedImage, widthResize, heightResize);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	error = lodepng_encode32_file("C:/Users/Nelson/Documents/Etudes/Multi threading/Images/occlusion.png", occlusionImage, widthResize, heightResize);
+	if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
+	/********************************************/
+	/*                                          */
+	/*  FREE THE POINTERS AND THE IMAGE OBJECTS */
+	/*                                          */
+	/********************************************/
+
+	free(greyImage0);
+	free(greyImage1);
+	free(resizeImage0);
+	free(resizeImage1);
+	free(znccImage0);
+	free(znccImage1);
+	free(crossCheckedImage);
+	free(occlusionImage);
+
+	clReleaseMemObject(original0);
+	clReleaseMemObject(original1);
+	clReleaseMemObject(grey0);
+	clReleaseMemObject(grey1);
 	clReleaseMemObject(resize0);
 	clReleaseMemObject(resize1);
 	clReleaseMemObject(zncc0);
