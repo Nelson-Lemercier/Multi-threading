@@ -41,7 +41,35 @@ int main (int argc, const char * argv[]) {
 	LARGE_INTEGER startGPU;
 	LARGE_INTEGER endGPU;
 
+	LARGE_INTEGER startOverhead;
+	LARGE_INTEGER endOverhead;
+
+	LARGE_INTEGER startCleanUp;
+	LARGE_INTEGER endCleanUp;
+
+	LARGE_INTEGER startWrite;
+	LARGE_INTEGER endWrite;
+	LARGE_INTEGER startKernels;
+	LARGE_INTEGER endKernels;
+	LARGE_INTEGER startRead;
+	LARGE_INTEGER endRead;
+
+	LARGE_INTEGER startKernel0;
+	LARGE_INTEGER endKernel0;
+	LARGE_INTEGER startKernel1;
+	LARGE_INTEGER endKernel1;
+	LARGE_INTEGER startKernel2;
+	LARGE_INTEGER endKernel2;
+	LARGE_INTEGER startKernel3;
+	LARGE_INTEGER endKernel3;
+	LARGE_INTEGER startKernel4;
+	LARGE_INTEGER endKernel4;
+	LARGE_INTEGER startKernel5;
+	LARGE_INTEGER endKernel5;
+
 	QueryPerformanceCounter(&startTime);
+
+	QueryPerformanceCounter(&startOverhead);
 
 	/********************************************/
 	/*                                          */
@@ -257,13 +285,17 @@ int main (int argc, const char * argv[]) {
 	unsigned char* crossCheckedImage = malloc(sizeof(unsigned char) * widthResize * heightResize * 4);
 	unsigned char* occlusionImage = malloc(sizeof(unsigned char) * widthResize * heightResize * 4);
 
-	QueryPerformanceCounter(&startGPU);
+	QueryPerformanceCounter(&endOverhead);
 
 	/********************************************/
 	/*                                          */
 	/*        CREATE THE IMAGE OBJECTS          */
 	/*                                          */
 	/********************************************/
+
+	QueryPerformanceCounter(&startGPU);
+
+	QueryPerformanceCounter(&startWrite);
 
 	cl_mem original0, grey0, original1, grey1, resize0, resize1, zncc0 , zncc1, crossChecked, occlusion;
 
@@ -289,11 +321,19 @@ int main (int argc, const char * argv[]) {
 
 	}
 
+	clFinish(cmd_queue);
+
+	QueryPerformanceCounter(&endWrite);
+
 	/********************************************/
 	/*                                          */
 	/*            EXECUTE THE KERNELS           */
 	/*                                          */
 	/********************************************/
+
+	QueryPerformanceCounter(&startKernels);
+
+	QueryPerformanceCounter(&startKernel0);
 
 	//******************************************************************************************************
 	// Transform grey 0
@@ -318,6 +358,10 @@ int main (int argc, const char * argv[]) {
 		printf("\nError clEnqueueNDRangeKernel: %d\n", err);
 
 	}
+
+	clFinish(cmd_queue);
+
+	QueryPerformanceCounter(&endKernel0);
 
 	//******************************************************************************************************
 	// Transform grey 1
@@ -346,6 +390,8 @@ int main (int argc, const char * argv[]) {
 
 	clFinish(cmd_queue);
 
+	QueryPerformanceCounter(&startKernel1);
+
 	//******************************************************************************************************
 	// Resize 0
 
@@ -369,6 +415,10 @@ int main (int argc, const char * argv[]) {
 		printf("\nError clEnqueueNDRangeKernel: %d\n", err);
 
 	}
+
+	clFinish(cmd_queue);
+
+	QueryPerformanceCounter(&endKernel1);
 
 	//******************************************************************************************************
 	// Resize 1
@@ -395,6 +445,8 @@ int main (int argc, const char * argv[]) {
 	}
 
 	clFinish(cmd_queue);
+
+	QueryPerformanceCounter(&startKernel2);
 
 	//******************************************************************************************************
 	// ZNCC 0
@@ -428,6 +480,12 @@ int main (int argc, const char * argv[]) {
 
 	}
 
+	clFinish(cmd_queue);
+
+	QueryPerformanceCounter(&endKernel2);
+
+	QueryPerformanceCounter(&startKernel3);
+
 	//******************************************************************************************************
 	// ZNCC 1
 
@@ -458,6 +516,10 @@ int main (int argc, const char * argv[]) {
 
 	clFinish(cmd_queue);
 
+	QueryPerformanceCounter(&endKernel3);
+
+	QueryPerformanceCounter(&startKernel4);
+
 	//******************************************************************************************************
 	// Cross checking
 
@@ -484,6 +546,10 @@ int main (int argc, const char * argv[]) {
 	}
 
 	clFinish(cmd_queue);
+
+	QueryPerformanceCounter(&endKernel4);
+
+	QueryPerformanceCounter(&startKernel5);
 
 	//******************************************************************************************************
 	// Occlusion
@@ -513,12 +579,17 @@ int main (int argc, const char * argv[]) {
 
 	clFinish(cmd_queue);
 
+	QueryPerformanceCounter(&endKernel5);
+
+	QueryPerformanceCounter(&endKernels);
 
 	/********************************************/
 	/*                                          */
 	/*         RETRIEVE THE RESULTS             */
 	/*                                          */
 	/********************************************/
+
+	QueryPerformanceCounter(&startRead);
 
 	//******************************************************************************************************
 	// Transform grey 0
@@ -626,7 +697,10 @@ int main (int argc, const char * argv[]) {
 
 	clFinish(cmd_queue);
 
+	QueryPerformanceCounter(&endRead);
+
 	QueryPerformanceCounter(&endGPU);
+
 
 	/********************************************/
 	/*                                          */
@@ -665,6 +739,8 @@ int main (int argc, const char * argv[]) {
 	/*                                          */
 	/********************************************/
 
+	QueryPerformanceCounter(&startCleanUp);
+
 	free(greyImage0);
 	free(greyImage1);
 	free(resizeImage0);
@@ -694,10 +770,25 @@ int main (int argc, const char * argv[]) {
 	clReleaseCommandQueue(cmd_queue);
 	clReleaseContext(context);
 
+	QueryPerformanceCounter(&endCleanUp);
+
 	QueryPerformanceCounter(&endTime);
 
 	LARGE_INTEGER delta;
 	LARGE_INTEGER deltaGPU;
+	LARGE_INTEGER deltaOverhead;
+	LARGE_INTEGER deltaCleanUp;
+
+	LARGE_INTEGER deltaWrite;
+	LARGE_INTEGER deltaKernels;
+	LARGE_INTEGER deltaRead;
+
+	LARGE_INTEGER deltaKernel0;
+	LARGE_INTEGER deltaKernel1;
+	LARGE_INTEGER deltaKernel2;
+	LARGE_INTEGER deltaKernel3;
+	LARGE_INTEGER deltaKernel4;
+	LARGE_INTEGER deltaKernel5;
 
 	delta.QuadPart = endTime.QuadPart - startTime.QuadPart;
 	float deltaSeconds = (float)delta.QuadPart / clockFrequency.QuadPart;
@@ -705,7 +796,42 @@ int main (int argc, const char * argv[]) {
 	deltaGPU.QuadPart = endGPU.QuadPart - startGPU.QuadPart;
 	float deltaGPUSeconds = (float)deltaGPU.QuadPart / clockFrequency.QuadPart;
 
-	printf("Execution time:\t%f s\nGPU execution time:\t%f s\n", deltaSeconds, deltaGPUSeconds);
+	deltaOverhead.QuadPart = endOverhead.QuadPart - startOverhead.QuadPart;
+	float deltaOverheadSeconds = (float)deltaOverhead.QuadPart / clockFrequency.QuadPart;
+
+	deltaCleanUp.QuadPart = endCleanUp.QuadPart - startCleanUp.QuadPart;
+	float deltaCleanUpSeconds = (float)deltaCleanUp.QuadPart / clockFrequency.QuadPart;
+
+	deltaWrite.QuadPart = endWrite.QuadPart - startWrite.QuadPart;
+	float deltaWriteSeconds = (float)deltaWrite.QuadPart / clockFrequency.QuadPart;
+
+	deltaKernels.QuadPart = endKernels.QuadPart - startKernels.QuadPart;
+	float deltaKernelsSeconds = (float)deltaKernels.QuadPart / clockFrequency.QuadPart;
+
+	deltaRead.QuadPart = endRead.QuadPart - startRead.QuadPart;
+	float deltaReadSeconds = (float)deltaRead.QuadPart / clockFrequency.QuadPart;
+
+	deltaKernel0.QuadPart = endKernel0.QuadPart - startKernel0.QuadPart;
+	float deltaKernel0Seconds = (float)deltaKernel0.QuadPart / clockFrequency.QuadPart;
+
+	deltaKernel1.QuadPart = endKernel1.QuadPart - startKernel1.QuadPart;
+	float deltaKernel1Seconds = (float)deltaKernel1.QuadPart / clockFrequency.QuadPart;
+
+	deltaKernel2.QuadPart = endKernel2.QuadPart - startKernel2.QuadPart;
+	float deltaKernel2Seconds = (float)deltaKernel2.QuadPart / clockFrequency.QuadPart;
+
+	deltaKernel3.QuadPart = endKernel3.QuadPart - startKernel3.QuadPart;
+	float deltaKernel3Seconds = (float)deltaKernel3.QuadPart / clockFrequency.QuadPart;
+
+	deltaKernel4.QuadPart = endKernel4.QuadPart - startKernel4.QuadPart;
+	float deltaKernel4Seconds = (float)deltaKernel4.QuadPart / clockFrequency.QuadPart;
+
+	deltaKernel5.QuadPart = endKernel5.QuadPart - startKernel5.QuadPart;
+	float deltaKernel5Seconds = (float)deltaKernel5.QuadPart / clockFrequency.QuadPart;
+
+	printf("Execution time:\t%f s\nOverhead execution time:\t%f s\nGPU execution time:\t%f s\nWrite execution time:\t%f s\nKernels execution time:\t%f s\nRead execution time:\t%f s\nCleanUp execution time:\t%f s\n\n", deltaSeconds, deltaOverheadSeconds, deltaGPUSeconds, deltaWriteSeconds, deltaKernelsSeconds, deltaReadSeconds, deltaCleanUpSeconds);
+
+	printf("Kernel0:\t%f s\nKernel1:\t%f s\nKernel2:\t%f s\nKernel3:\t%f s\nKernel4:\t%f s\nKernel5:\t%f s\n", deltaKernel0Seconds, deltaKernel1Seconds, deltaKernel2Seconds, deltaKernel3Seconds, deltaKernel4Seconds, deltaKernel5Seconds);
 
     return 0;
 

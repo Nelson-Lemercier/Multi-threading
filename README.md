@@ -106,3 +106,17 @@ ________________________________________________________________________________
 ## Time of execution
 
 Average on 5 trials: 35.6964294 seconds
+
+## Profiling
+
+![Comparison graph](Performances graphs/Comparison_performances.PNG  "Comparison graph")
+
+We didn't save that much time in comparison to the CPU multithread program.
+
+![Profiling graph 1](Performances graphs/Profiling_all.PNG  "Percentage of the time passed in each part of the program")
+
+The reading and the writing commands are executed fast enough. Our problems are the kernels execution.
+
+![Profiling graph 2](Performances graphs/Profiling_kernels.PNG  "Percentage of time passed in each kernel")
+
+The ZNCC right and left kernels need to be optimized first and then the occlusion filling one.
