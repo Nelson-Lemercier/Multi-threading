@@ -294,7 +294,6 @@ int main (int argc, const char * argv[]) {
 	/********************************************/
 
 	QueryPerformanceCounter(&startGPU);
-
 	QueryPerformanceCounter(&startWrite);
 
 	cl_mem original0, grey0, original1, grey1, resize0, resize1, zncc0 , zncc1, crossChecked, occlusion;
@@ -468,9 +467,9 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	global_work_size[0] = widthResize - 8 - maxDisp; global_work_size[1] = heightResize - 8;
+	global_work_size[0] = widthResize - 8 - maxDisp - 3; global_work_size[1] = heightResize - 8;
 	global_work_offset[0] = 4; global_work_offset[1] = 4;
-	local_work_size[0] = 1; local_work_size[1] = 1;
+	local_work_size[0] = 33; local_work_size[1] = 31;
 
 	err = clEnqueueNDRangeKernel(cmd_queue, kernel[2], 2, global_work_offset, global_work_size, local_work_size, 0, 0, 0);
 
@@ -502,9 +501,9 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	global_work_size[0] = widthResize - 8 - maxDisp; global_work_size[1] = heightResize - 8;
+	global_work_size[0] = widthResize - 8 - maxDisp - 3; global_work_size[1] = heightResize - 8;
 	global_work_offset[0] = 4 + maxDisp; global_work_offset[1] = 4;
-	local_work_size[0] = 1; local_work_size[1] = 1;
+	local_work_size[0] = 33; local_work_size[1] = 31;
 
 	err = clEnqueueNDRangeKernel(cmd_queue, kernel[3], 2, global_work_offset, global_work_size, local_work_size, 0, 0, 0);
 
@@ -565,9 +564,9 @@ int main (int argc, const char * argv[]) {
 
 	}
 
-	global_work_size[0] = widthResize - 1; global_work_size[1] = heightResize - 1;
+	global_work_size[0] = widthResize - 1 - 6; global_work_size[1] = heightResize - 1 - 3;
 	global_work_offset[0] = 1; global_work_offset[1] = 1;
-	local_work_size[0] = 1; local_work_size[1] = 1;
+	local_work_size[0] = 28; local_work_size[1] = 25;
 
 	err = clEnqueueNDRangeKernel(cmd_queue, kernel[5], 2, global_work_offset, global_work_size, local_work_size, 0, 0, 0);
 
@@ -597,7 +596,7 @@ int main (int argc, const char * argv[]) {
 	size_t origin[3] = {0, 0, 0};
 	size_t region[3] = {width, height, 1};
 
-	err = clEnqueueReadImage(cmd_queue, grey0, CL_TRUE, origin, region, 0, 0, greyImage0, 0, 0, 0);
+	err = clEnqueueReadImage(cmd_queue, grey0, CL_FALSE, origin, region, 0, 0, greyImage0, 0, 0, 0);
 	if(err != CL_SUCCESS){
 
 		printf("\nError clEnqueueReadImage: %d\n", err);
@@ -610,7 +609,7 @@ int main (int argc, const char * argv[]) {
 	origin[0] = origin[1] = origin[2] = 0;
 	region[0] = width; region[1] = height; region[2] = 1;
 
-	err = clEnqueueReadImage(cmd_queue, grey1, CL_TRUE, origin, region, 0, 0, greyImage1, 0, 0, 0);
+	err = clEnqueueReadImage(cmd_queue, grey1, CL_FALSE, origin, region, 0, 0, greyImage1, 0, 0, 0);
 	if(err != CL_SUCCESS){
 
 		printf("\nError clEnqueueReadImage: %d\n", err);
@@ -623,7 +622,7 @@ int main (int argc, const char * argv[]) {
 	origin[0] = origin[1] = origin[2] = 0;
 	region[0] = widthResize; region[1] = heightResize; region[2] = 1;
 
-	err = clEnqueueReadImage(cmd_queue, resize0, CL_TRUE, origin, region, 0, 0, resizeImage0, 0, 0, 0);
+	err = clEnqueueReadImage(cmd_queue, resize0, CL_FALSE, origin, region, 0, 0, resizeImage0, 0, 0, 0);
 	if(err != CL_SUCCESS){
 
 		printf("\nError clEnqueueReadImage: %d\n", err);
@@ -636,7 +635,7 @@ int main (int argc, const char * argv[]) {
 	origin[0] = origin[1] = origin[2] = 0;
 	region[0] = widthResize; region[1] = heightResize; region[2] = 1;
 
-	err = clEnqueueReadImage(cmd_queue, resize1, CL_TRUE, origin, region, 0, 0, resizeImage1, 0, 0, 0);
+	err = clEnqueueReadImage(cmd_queue, resize1, CL_FALSE, origin, region, 0, 0, resizeImage1, 0, 0, 0);
 	if(err != CL_SUCCESS){
 
 		printf("\nError clEnqueueReadImage: %d\n", err);
@@ -649,7 +648,7 @@ int main (int argc, const char * argv[]) {
 	origin[0] = origin[1] = origin[2] = 0;
 	region[0] = widthResize - 8; region[1] = heightResize - 8; region[2] = 1;
 
-	err = clEnqueueReadImage(cmd_queue, zncc0, CL_TRUE, origin, region, 0, 0, znccImage0, 0, 0, 0);
+	err = clEnqueueReadImage(cmd_queue, zncc0, CL_FALSE, origin, region, 0, 0, znccImage0, 0, 0, 0);
 	if(err != CL_SUCCESS){
 
 		printf("\nError clEnqueueReadImage: %d\n", err);
@@ -662,7 +661,7 @@ int main (int argc, const char * argv[]) {
 	origin[0] = origin[1] = origin[2] = 0;
 	region[0] = widthResize - 8; region[1] = heightResize - 8; region[2] = 1;
 
-	err = clEnqueueReadImage(cmd_queue, zncc1, CL_TRUE, origin, region, 0, 0, znccImage1, 0, 0, 0);
+	err = clEnqueueReadImage(cmd_queue, zncc1, CL_FALSE, origin, region, 0, 0, znccImage1, 0, 0, 0);
 	if(err != CL_SUCCESS){
 
 		printf("\nError clEnqueueReadImage: %d\n", err);
@@ -675,7 +674,7 @@ int main (int argc, const char * argv[]) {
 	origin[0] = origin[1] = origin[2] = 0;
 	region[0] = widthResize; region[1] = heightResize; region[2] = 1;
 
-	err = clEnqueueReadImage(cmd_queue, crossChecked, CL_TRUE, origin, region, 0, 0, crossCheckedImage, 0, 0, 0);
+	err = clEnqueueReadImage(cmd_queue, crossChecked, CL_FALSE, origin, region, 0, 0, crossCheckedImage, 0, 0, 0);
 	if(err != CL_SUCCESS){
 
 		printf("\nError clEnqueueReadImage: %d\n", err);
@@ -688,7 +687,7 @@ int main (int argc, const char * argv[]) {
 	origin[0] = origin[1] = origin[2] = 0;
 	region[0] = widthResize; region[1] = heightResize; region[2] = 1;
 
-	err = clEnqueueReadImage(cmd_queue, occlusion, CL_TRUE, origin, region, 0, 0, occlusionImage, 0, 0, 0);
+	err = clEnqueueReadImage(cmd_queue, occlusion, CL_FALSE, origin, region, 0, 0, occlusionImage, 0, 0, 0);
 	if(err != CL_SUCCESS){
 
 		printf("\nError clEnqueueReadImage: %d\n", err);

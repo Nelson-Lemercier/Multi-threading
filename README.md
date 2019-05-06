@@ -94,7 +94,7 @@ Average on 5 trials: 42.154733 seconds
 **General tasks**
 
 - [x] Implement the algorithm using OpenCL and a GPU
-- [ ] Start the optimization of the OpenCL kernels required in the next phase
+- [x] Start the optimization of the OpenCL kernels required in the next phase
 ________________________________________________________________________________________
 
 **Secondary tasks**
@@ -105,17 +105,17 @@ ________________________________________________________________________________
 
 ## Time of execution
 
-Average on 5 trials: 35.6964294 seconds
+Average on 5 trials: 8.619477 seconds
 
 ## Profiling
 
 ![Comparison graph](Performances graphs/Comparison_performances.PNG  "Comparison graph")
 
-We didn't save that much time in comparison to the CPU multithread program.
+The GU program is about 20 times faster than the CPU one. This is already a good acceleration but we can push the optimization a bit further.
 
 ![Profiling graph 1](Performances graphs/Profiling_all.PNG  "Percentage of the time passed in each part of the program")
 
-The reading and the writing commands are executed fast enough. Our problems are the kernels execution.
+The reading and the writing commands are executed fast enough. Our main problems are the kernels execution.
 
 ![Profiling graph 2](Performances graphs/Profiling_kernels.PNG  "Percentage of time passed in each kernel")
 
