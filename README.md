@@ -109,14 +109,14 @@ Average on 5 trials: 8.619477 seconds
 
 ## Profiling
 
-![Comparison graph](Performances graphs/Comparison_performances.PNG  "Comparison graph")
+![](Performances_graphs/Comparison_performances.PNG  "Comparison graph")
 
 The GU program is about 20 times faster than the CPU one. This is already a good acceleration but we can push the optimization a bit further.
 
-![Profiling graph 1](Performances graphs/Profiling_all.PNG  "Percentage of the time passed in each part of the program")
+![](Performances_graphs/Profiling_all.PNG  "Percentage of the time passed in each part of the program")
 
 The reading and the writing commands are executed fast enough. Our main problems are the kernels execution.
 
-![Profiling graph 2](Performances graphs/Profiling_kernels.PNG  "Percentage of time passed in each kernel")
+![](Performances_graphs/Profiling_kernels.PNG  "Percentage of time passed in each kernel")
 
 The ZNCC right and left kernels need to be optimized first and then the occlusion filling one.
