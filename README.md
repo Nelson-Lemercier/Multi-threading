@@ -111,7 +111,7 @@ Average on 5 trials: 8.619477 seconds
 
 ![](Performances_graphs/Comparison_performances.PNG  "Comparison graph")
 
-The GU program is about 20 times faster than the CPU one. This is already a good acceleration but we can push the optimization a bit further.
+The GPU program is about 20 times faster than the CPU one. This is already a good acceleration but we can push the optimization a bit further.
 
 ![](Performances_graphs/Profiling_all.PNG  "Percentage of the time passed in each part of the program")
 
@@ -120,3 +120,17 @@ The reading and the writing commands are executed fast enough. Our main problems
 ![](Performances_graphs/Profiling_kernels.PNG  "Percentage of time passed in each kernel")
 
 The ZNCC right and left kernels need to be optimized first and then the occlusion filling one.
+
+# Multi thread GPU OpenCL Optimization
+
+## Planned optimizations
+
+- [x] Use the function rsqrt()
+- [ ] Use a double command queue
+
+## Results (average on 5 trials)
+
+|               | No optimization | rsqrt() | double command queue |
+| ------------- | ------------- | ------------- | ------------- |
+| Execution time |   8.767881 | 8.727495 |   |
+| Kernels execution time  |  1.231774 | 1.200735 |               |
